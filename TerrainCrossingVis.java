@@ -67,11 +67,14 @@ public class TerrainCrossingVis {
         SecureRandom r1 = SecureRandom.getInstance("SHA1PRNG");
         long seed = Long.parseLong(seedStr);
         r1.setSeed(seed);
+        // フィールドのサイズを決める
         S = r1.nextInt(maxSize - minSize + 1) + minSize;
+        // アイテムの最大値を決める
         maxItems = S*S/10;
         T = r1.nextInt(maxTypes - minTypes + 1) + minTypes;
         N = r1.nextInt(maxItems - minItems + 1) + minItems;
         C = r1.nextInt(maxCap - minCap + 1) + minCap;
+        // 
         if (seed == 1) {
             S = 5;
             T = 3;
@@ -132,6 +135,7 @@ public class TerrainCrossingVis {
                 loc[i] = new Location(getRandInsideCell(r1), getRandInsideCell(r1));
                 // verify that no two locations are within 3 * eps (so any other location can be near at most one of them)
                 for (int j = 0; j < i; ++j)
+                    // 他の座標との距離が3 * 0.001以内にある場合は設置を行わない
                     if (loc[i].near(loc[j], 3 * Location.eps)) {
                         ok = false;
                         break;
@@ -167,11 +171,11 @@ public class TerrainCrossingVis {
         e.printStackTrace();
     }
     }
-    // -----------------------------------------
+    // 座標が画面外に出ているかどうかを調べる
     boolean isNearOuterBorder(Location l) {
         return !(l.x >= Location.eps && l.x <= S - Location.eps && l.y >= Location.eps && l.y <= S - Location.eps);
     }
-    // -----------------------------------------
+    // セルの内部に座標があるかどうかを調べる
     boolean isNearInnerBorder(Location l) {
         double inCellX = l.x - l.xi;
         double inCellY = l.y - l.yi;
@@ -456,11 +460,12 @@ public class TerrainCrossingVis {
         public void windowIconified(WindowEvent e) { }
         public void windowDeiconified(WindowEvent e) { }
     }
+
     // -----------------------------------------
     public TerrainCrossingVis(String seed) {
       try {
-        if (vis)
-        {   jf = new JFrame();
+        if (vis) {
+            jf = new JFrame();
             v = new Vis();
             jf.getContentPane().add(v);
         }
@@ -486,8 +491,8 @@ public class TerrainCrossingVis {
         String seed = "1";
         vis = true;
         SZ = 20;
-        for (int i = 0; i<args.length; i++)
-        {   if (args[i].equals("-seed"))
+        for (int i = 0; i<args.length; i++) {
+            if (args[i].equals("-seed"))
                 seed = args[++i];
             if (args[i].equals("-exec"))
                 exec = args[++i];
@@ -506,7 +511,7 @@ public class TerrainCrossingVis {
     }
 }
 
-class ErrorReader extends Thread{
+class ErrorReader extends Thread {
     InputStream error;
     public ErrorReader(InputStream is) {
         error = is;
