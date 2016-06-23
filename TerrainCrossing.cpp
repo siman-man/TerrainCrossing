@@ -49,20 +49,14 @@ public:
 // -------8<------- end of solution submitted to the website -------8<-------
 template<class T> void getVector(vector<T>& v) { for (int i = 0; i < v.size(); ++i) cin >> v[i];}
 int main() {
-    TerrainCrossing tc;
-    int M;
+    TerrainCrossing tc; int L, M, capacity;
     cin >> M;
-    vector<string> map(M);
-    getVector(map);
-    int L;
+    vector<string> map(M); getVector(map);
     cin >> L;
-    vector<double> locations(L);
-    getVector(locations);
-    int capacity;
+    vector<double> locations(L); getVector(locations);
     cin >> capacity;
     vector<double> ret = tc.getPath(map, locations, capacity);
     cout << ret.size() << endl;
-    for (int i = 0; i < ret.size(); ++i)
-        cout << ret[i] << endl;
+    for (int i = 0; i < ret.size(); ++i) cout << ret[i] << endl;
     cout.flush();
 }
