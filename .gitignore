@@ -1,7 +1,8 @@
 *.swp
 *.txt
-StarTraveller
+TerrainCrossing
 *.png
 *.exe
 *.jar
 data/
+output
