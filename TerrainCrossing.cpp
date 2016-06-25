@@ -16,7 +16,6 @@ using namespace std;
 
 const int MAX_S = 50;
 const int MAX_N = 250;
-const int MAX_V = MAX_S * MAX_S;
 const int UNKNOWN = -1;
 const int ITEM = 0;
 const int TARGET = 1;
@@ -124,22 +123,6 @@ class TerrainCrossing {
         }
       }
 
-      /*
-      for (int i = 0; i < V; i++) {
-        int y = i / S;
-        int x = i % S;
-
-        for (int j = 0; j < 4; j++) {
-          int ny = y + DY[j];
-          int nx = x + DX[j];
-          int nid = ny * S + nx;
-          if (isOutside(ny, nx)) continue;
-
-          g_pathCost[i][nid] = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
-        }
-      }
-      */
-
       for (int i = 0; i < 2*N; i++) {
         double y = locations[2*i+1];
         double x = locations[2*i];
@@ -191,9 +174,9 @@ class TerrainCrossing {
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
 
-        vector<int> objIdList = g_field[y][x].objIdList;
-        for (int i = 0; i < objIdList.size(); i++) {
-          g_pathCost[oid][objIdList[i]] = node.cost;
+        int size = g_field[y][x].objIdList.size();
+        for (int i = 0; i < size; i++) {
+          g_pathCost[oid][g_field[y][x].objIdList[i]] = node.cost;
         }
 
         for (int i = 0; i < 4; i++) {
@@ -204,8 +187,8 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
-          next.cost += g_fieldCost[node.cid][nid] + pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
-          next.ids.push_back(nid);
+          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          //next.ids.push_back(nid);
           pque.push(next);
         }
       }
@@ -311,7 +294,7 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
-          next.cost += g_fieldCost[node.cid][nid] + pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
+          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
           next.ids.push_back(nid);
           pque.push(next);
         }
@@ -332,27 +315,15 @@ class TerrainCrossing {
         double minCost = DBL_MAX;
         int minId = -1;
 
-        if (i % 2 == 0) {
-          for (int j = 0; j < N; j++) {
-            Target *target = getTarget(j);
-            if (checkList[target->id]) continue;
-            double cost = g_pathCost[from][target->id];
+        for (int j = 0; j < N; j++) {
+          Object *obj = (i % 2 == 0)? getTarget(j) : getItem(j);
 
-            if (minCost > cost) {
-              minCost = cost;
-              minId = target->id;
-            }
-          }
-        } else {
-          for (int j = 0; j < N; j++) {
-            Item *item = getItem(j);
-            if (checkList[item->id]) continue;
-            double cost = g_pathCost[from][item->id];
+          if (checkList[obj->id]) continue;
+          double cost = g_pathCost[from][obj->id];
 
-            if (minCost > cost) {
-              minCost = cost;
-              minId = item->id;
-            }
+          if (minCost > cost) {
+            minCost = cost;
+            minId = obj->id;
           }
         }
 
@@ -413,7 +384,7 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
-          next.cost += g_fieldCost[node.cid][nid] + pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
+          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
           next.ids.push_back(nid);
           pque.push(next);
         }
