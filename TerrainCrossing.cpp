@@ -271,8 +271,8 @@ class TerrainCrossing {
       int ssize = startPath.size();
       fprintf(stderr,"start path size = %d\n", ssize);
       for (int i = 0; i < ssize; i++) {
-        Location coord = startPath[i];
-        result.push_back(coord);
+        Location l = startPath[i];
+        result.push_back(l);
       }
       result[0].locked = true;
 
@@ -286,15 +286,15 @@ class TerrainCrossing {
         vector<Location> pa = createPath(from, to);
 
         for (int j = 0; j < pa.size(); j++) {
-          Location coord1 = result[rsize-1];
-          Location coord2 = pa[j];
+          Location l1 = result[rsize-1];
+          Location l2 = pa[j];
 
-          if (!coord1.locked) {
-            int nid1 = floor(coord1.y)*S + floor(coord1.x);
-            int nid2 = floor(coord2.y)*S + floor(coord2.x);
+          if (!l1.locked) {
+            int nid1 = l1.yi*S + l1.xi;
+            int nid2 = l2.yi*S + l2.xi;
 
             if (nid1 == nid2) {
-              result[rsize-1] = coord2;
+              result[rsize-1] = l2;
               continue;
             }
           }
@@ -308,8 +308,8 @@ class TerrainCrossing {
       int esize = endPath.size();
       fprintf(stderr,"end path size = %d\n", esize);
       for (int i = 0; i < esize; i++) {
-        Location coord = endPath[i];
-        result.push_back(coord);
+        Location l = endPath[i];
+        result.push_back(l);
       }
 
       result[result.size()-1].locked = true;
@@ -332,23 +332,23 @@ class TerrainCrossing {
 
       while (currentTime < timeLimit) {
         int index = xor128() % psize;
-        Location coord = path[index];
-        if (coord.locked) continue;
-        Location temp = coord;
+        Location l = path[index];
+        if (l.locked) continue;
+        Location temp = l;
 
         int d1 = xor128()%10;
         int d2 = xor128()%10;
-        coord.y += 0.01 * d1 - 0.05;
-        coord.x += 0.01 * d2 - 0.05;
-        int nid = floor(coord.y)*S + floor(coord.x);
+        l.y += 0.01 * d1 - 0.05;
+        l.x += 0.01 * d2 - 0.05;
+        int nid = floor(l.y)*S + floor(l.x);
 
-        if (coord.y - coord.yi < EPS) continue;
-        if (coord.x - coord.xi < EPS) continue;
-        if ((coord.yi+1) - coord.y < EPS) continue;
-        if ((coord.xi+1) - coord.x < EPS) continue;
+        if (l.y - l.yi < EPS) continue;
+        if (l.x - l.xi < EPS) continue;
+        if ((l.yi+1) - l.y < EPS) continue;
+        if ((l.xi+1) - l.x < EPS) continue;
 
-        if (nid != coord.nid) continue;
-        path[index] = coord;
+        if (nid != l.nid) continue;
+        path[index] = l;
         double cost = calcCostDetail(path);
 
         if (minCost > cost) {
@@ -447,10 +447,10 @@ class TerrainCrossing {
 
       int psize = path.size();
       for (int i = 0; i < psize; i++) {
-        Location coord = path[i];
-        answer.push_back(coord.x);
-        answer.push_back(coord.y);
-        //fprintf(stderr,"%d: y = %f, x = %f\n", i, coord.y, coord.x);
+        Location l = path[i];
+        answer.push_back(l.x);
+        answer.push_back(l.y);
+        //fprintf(stderr,"%d: y = %f, x = %f\n", i, l.y, l.x);
       }
 
       return answer;
@@ -480,9 +480,9 @@ class TerrainCrossing {
 
           for (int i = 0; i < isize; i++) {
             int id = node.ids[i];
-            Location coord = nid2coord(id);
-            if (id == 0) coord.locked = true;
-            path.push_back(coord);
+            Location l = nid2coord(id);
+            if (id == 0) l.locked = true;
+            path.push_back(l);
           }
 
           path.push_back(Location(toObj->y, toObj->x, true));
