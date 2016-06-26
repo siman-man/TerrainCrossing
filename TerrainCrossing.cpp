@@ -139,7 +139,6 @@ typedef Object Target;
 
 int g_fieldCost[MAX_S][MAX_S];
 double g_pathCost[2*MAX_N][2*MAX_N];
-bool g_existObject[MAX_S][MAX_S];
 ll g_startCycle;
 
 Cell g_field[MAX_S][MAX_S];
@@ -155,8 +154,6 @@ class TerrainCrossing {
       g_capacity = capacity;
 
       g_startCycle = getCycle();
-
-      memset(g_existObject, false, sizeof(g_existObject));
 
       fprintf(stderr,"S = %d, N = %d, capacity = %d\n", S, N, capacity);
 
@@ -182,7 +179,6 @@ class TerrainCrossing {
 
         Object obj(i, UNKNOWN, y, x);
         obj.nid = iy * S + ix;
-        g_existObject[iy][ix] = true;
         g_field[iy][ix].objIdList.push_back(i);
 
         if (i < N) {
