@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <cstdlib>
 #include <iostream>
+#include <sys/time.h>
 #include <limits>
 #include <map>
 #include <math.h>
@@ -14,11 +15,16 @@
 
 using namespace std;
 
+typedef long long ll;
+
 const int MAX_S = 50;
 const int MAX_N = 250;
 const int UNKNOWN = -1;
 const int ITEM = 0;
 const int TARGET = 1;
+
+const ll CYCLE_PER_SEC = 2400000000;
+double MAX_TIME = 10.0;
 
 const int INF = 99999;
 
@@ -27,13 +33,51 @@ const int DX[4] = {0, -1, 1, 0};
 
 const double EPS = 0.001;
 
-struct Coord {
+unsigned long long xor128(){
+  static unsigned long long rx=123456789, ry=362436069, rz=521288629, rw=88675123;
+  unsigned long long rt = (rx ^ (rx<<11));
+  rx=ry; ry=rz; rz=rw;
+  return (rw=(rw^(rw>>19))^(rt^(rt>>8)));
+}
+
+unsigned long long int getCycle() {
+  unsigned int low, high;
+  __asm__ volatile ("rdtsc" : "=a" (low), "=d" (high));
+  return ((unsigned long long int)low) | ((unsigned long long int)high << 32);
+}
+
+double getTime(unsigned long long int begin_cycle) {
+  return (double)(getCycle() - begin_cycle) / CYCLE_PER_SEC;
+}
+
+int S;
+int V;
+int N;
+int g_capacity;
+
+struct Location {
   double y;
   double x;
+  int yi;
+  int xi;
+  int nid;
+  bool locked;
 
-  Coord(double y = 0.0, double x = 0.0) {
+  Location(double y = -1.0, double x = -1.0, bool locked = false) {
     this->y = y;
     this->x = x;
+    this->yi = floor(y);
+    this->xi = floor(x);
+    this->locked = locked;
+    this->nid = yi * S + xi;
+  }
+
+  double dist(Location other) {
+    return sqrt((other.y-y)*(other.y-y)+(other.x-x)*(other.x-x));
+  }
+
+  int manhattan(Location other) {
+    return abs(other.yi - yi) + abs(other.xi - xi);
   }
 };
 
@@ -76,6 +120,14 @@ struct Object {
     this->y = y;
     this->x = x;
   }
+
+  bool isItem() {
+    return type == ITEM;
+  }
+
+  bool isTarget() {
+    return type == TARGET;
+  }
 };
 
 struct Cell {
@@ -88,10 +140,7 @@ typedef Object Target;
 int g_fieldCost[MAX_S][MAX_S];
 double g_pathCost[2*MAX_N][2*MAX_N];
 bool g_existObject[MAX_S][MAX_S];
-int S;
-int V;
-int N;
-int g_capacity;
+ll g_startCycle;
 
 Cell g_field[MAX_S][MAX_S];
 vector<Object> g_objectList;
@@ -104,6 +153,8 @@ class TerrainCrossing {
       S = map.size();
       N = locations.size() / 4;
       g_capacity = capacity;
+
+      g_startCycle = getCycle();
 
       memset(g_existObject, false, sizeof(g_existObject));
 
@@ -201,51 +252,188 @@ class TerrainCrossing {
 
       fprintf(stderr,"start =>\n");
 
+      /*
       vector<int> path = createFirstPathNN();
-      vector<Coord> result;
+      assert(isValidPath(path));
+      */
+      vector<int> path = createFirstPathFI();
+      assert(isValidPath(path));
+
+      path = cleanPath(path);
+      vector<Location> result;
       Object *obj = getObject(path[0]);
-      vector<Coord> startPath = leaveMap(path[0]);
+      vector<Location> startPath = leaveMap(path[0]);
       reverse(startPath.begin(), startPath.end());
 
       int ssize = startPath.size();
       fprintf(stderr,"start path size = %d\n", ssize);
       for (int i = 0; i < ssize; i++) {
-        Coord coord = startPath[i];
+        Location coord = startPath[i];
         result.push_back(coord);
       }
+      result[0].locked = true;
 
-      result.push_back(Coord(obj->y, obj->x));
+      result.push_back(Location(obj->y, obj->x, true));
+      int rsize = result.size();
 
       for (int i = 0; i < path.size()-1; i++) {
         int from = path[i];
         int to = path[i+1];
 
-        vector<Coord> pa = createPath(from, to);
+        vector<Location> pa = createPath(from, to);
 
         for (int j = 0; j < pa.size(); j++) {
+          Location coord1 = result[rsize-1];
+          Location coord2 = pa[j];
+
+          if (!coord1.locked) {
+            int nid1 = floor(coord1.y)*S + floor(coord1.x);
+            int nid2 = floor(coord2.y)*S + floor(coord2.x);
+
+            if (nid1 == nid2) {
+              result[rsize-1] = coord2;
+              continue;
+            }
+          }
+
           result.push_back(pa[j]);
+          rsize++;
         }
       }
 
-      vector<Coord> endPath = leaveMap(path[path.size()-1]);
+      vector<Location> endPath = leaveMap(path[path.size()-1]);
       int esize = endPath.size();
       fprintf(stderr,"end path size = %d\n", esize);
       for (int i = 0; i < esize; i++) {
-        Coord coord = endPath[i];
+        Location coord = endPath[i];
         result.push_back(coord);
       }
 
+      result[result.size()-1].locked = true;
+
+      assert(result[0].locked);
+      fixPath(result);
       ret = path2answer(result);
 
       return ret;
     }
 
-    vector<double> path2answer(vector<Coord> path) {
+    void fixPath(vector<Location> &path) {
+      int psize = path.size();
+      double minCost = calcCostDetail(path);
+
+      double timeLimit = 9.5;
+      double currentTime = getTime(g_startCycle);
+      ll tryCount = 0;
+
+      while (currentTime < timeLimit) {
+        int index = xor128() % psize;
+        Location coord = path[index];
+        if (coord.locked) continue;
+        Location temp = coord;
+
+        int d1 = xor128()%10;
+        int d2 = xor128()%10;
+        coord.y += 0.01 * d1 - 0.05;
+        coord.x += 0.01 * d2 - 0.05;
+        int nid = floor(coord.y)*S + floor(coord.x);
+
+        if (coord.y - coord.yi < EPS) continue;
+        if (coord.x - coord.xi < EPS) continue;
+        if ((coord.yi+1) - coord.y < EPS) continue;
+        if ((coord.xi+1) - coord.x < EPS) continue;
+
+        if (nid != coord.nid) continue;
+        path[index] = coord;
+        double cost = calcCostDetail(path);
+
+        if (minCost > cost) {
+          minCost = cost;
+        } else {
+          path[index] = temp;
+        }
+
+        currentTime = getTime(g_startCycle);
+        tryCount++;
+      }
+
+      fprintf(stderr,"tryCount fix = %lld\n", tryCount);
+    }
+
+    vector<int> cleanPath(vector<int> path) {
+      vector<int> bestPath = path;
+      vector<int> goodPath = path;
+      ll startCycle = getCycle();
+      double timeLimit = 3.0;
+      double currentTime = getTime(startCycle);
+      double minCost = calcCost(bestPath);
+      double goodCost = minCost;
+      fprintf(stderr,"minCost = %f\n", minCost);
+      ll tryCount = 0;
+      ll invalidCount = 0;
+      int c1, c2;
+      int psize = path.size();
+
+      double T = 10000.0;
+      double k = 10.0;
+      double alpha = 0.999;
+
+      while (currentTime < timeLimit) {
+        do {
+          c1 = xor128() % psize;
+          c2 = xor128() % psize;
+        } while (c1 == c2);
+
+        swapObject(path, c1, c2);
+        double cost = calcCost(path);
+
+        if (cost == DBL_MAX) {
+          invalidCount++;
+        }
+
+        if (minCost > cost) {
+          minCost = cost;
+          bestPath = path;
+        } else {
+          swapObject(path, c1, c2);
+        }
+
+        /*
+        double diffCost = goodCost - minCost;
+
+        if (goodCost > cost) {
+          goodCost = cost;
+          goodPath = path;
+        } else if (xor128()%100 < 100*exp(diffCost/(k*T))) {
+          goodCost = cost;
+          goodPath = path;
+        } else {
+          swapObject(path, c1, c2);
+        }
+        */
+
+        T *= alpha;
+        currentTime = getTime(startCycle);
+        tryCount++;
+      }
+
+      fprintf(stderr,"(%lld/%lld), tryCount = %lld\n", invalidCount, tryCount, tryCount);
+
+      return bestPath;
+    }
+
+    void swapObject(vector<int> &path, int c1, int c2) {
+      int temp = path[c1];
+      path[c1] = path[c2];
+      path[c2] = temp;
+    }
+
+    vector<double> path2answer(vector<Location> path) {
       vector<double> answer;
 
       int psize = path.size();
       for (int i = 0; i < psize; i++) {
-        Coord coord = path[i];
+        Location coord = path[i];
         answer.push_back(coord.x);
         answer.push_back(coord.y);
         //fprintf(stderr,"%d: y = %f, x = %f\n", i, coord.y, coord.x);
@@ -254,8 +442,8 @@ class TerrainCrossing {
       return answer;
     }
 
-    vector<Coord> createPath(int from, int to) {
-      vector<Coord> path;
+    vector<Location> createPath(int from, int to) {
+      vector<Location> path;
       Object *fromObj = getObject(from);
       Object *toObj = getObject(to);
 
@@ -278,11 +466,12 @@ class TerrainCrossing {
 
           for (int i = 0; i < isize; i++) {
             int id = node.ids[i];
-            Coord coord = nid2coord(id);
+            Location coord = nid2coord(id);
+            if (id == 0) coord.locked = true;
             path.push_back(coord);
           }
 
-          path.push_back(Coord(toObj->y, toObj->x));
+          path.push_back(Location(toObj->y, toObj->x, true));
           break;
         }
 
@@ -335,8 +524,131 @@ class TerrainCrossing {
       return ret;
     }
 
-    vector<Coord> leaveMap(int oid) {
-      vector<Coord> path;
+    vector<int> createFirstPathFI() {
+      vector<int> ret;
+      int itemCount[2*N];
+      memset(itemCount, 0, sizeof(itemCount));
+      map<int, bool> checkList;
+
+      double minDist = DBL_MAX;
+      int minId = -1;
+      for (int i = 0; i < N; i++) {
+        Item *item = getItem(i);
+        double dist = calcDist(item->y, item->x, S/2.0, S/2.0);
+
+        if (minDist > dist) {
+          minDist = dist;
+          minId = i;
+        }
+      }
+      assert(minId >= 0);
+      ret.push_back(minId);
+      checkList[minId] = true;
+
+      for (int i = 0; i < 2*N-1; i++) {
+        int cnt = 0;
+
+        for (int j = 0; j < i+1; j++) {
+          int oid = ret[j];
+          Object *obj = getObject(oid);
+
+          if (obj->isItem()) {
+            cnt = min(g_capacity, cnt+1);
+          } else {
+            cnt--;
+          }
+          assert(cnt >= 0);
+          itemCount[j] = cnt;
+        }
+
+        double maxDist = -1;
+        int maxId = -1;
+
+        if (i % 2 == 0) {
+          for (int j = 0; j < N; j++) {
+            Target *target = getTarget(j);
+            if (checkList[target->id]) continue;
+
+            double dist = calcDist(target->y, target->x, S/2.0, S/2.0);
+
+            if (maxDist < dist) {
+              maxDist = dist;
+              maxId = target->id;
+            }
+          }
+
+          double minCost = DBL_MAX;
+          int index = -1;
+
+          int rsize = ret.size();
+          for (int k = 0; k < rsize; k++) {
+            if (itemCount[k] == 0) continue;
+            vector<int> temp = ret;
+            temp.insert(temp.begin()+(k+1), maxId);
+            if (!isValidPath(temp)) continue;
+            int o1 = ret[k];
+            int o2 = ret[(k+1)%rsize];
+            double c1 = g_pathCost[o1][maxId];
+            double c2 = g_pathCost[maxId][o2];
+            double c3 = g_pathCost[o1][o2];
+            double c = c1 + c2 - c3;
+
+            if (minCost > c) {
+              minCost = c;
+              index = k+1;
+            }
+          }
+
+          assert(index >= 0);
+          checkList[maxId] = true;
+          ret.insert(ret.begin()+index, maxId);
+        } else {
+          for (int j = 0; j < N; j++) {
+            Item *item = getItem(j);
+            if (checkList[item->id]) continue;
+
+            double dist = calcDist(item->y, item->x, S/2.0, S/2.0);
+
+            if (maxDist < dist) {
+              maxDist = dist;
+              maxId = item->id;
+            }
+          }
+
+          double minCost = DBL_MAX;
+          int index = -1;
+
+          int rsize = ret.size();
+          for (int k = 0; k < rsize; k++) {
+            int o1 = ret[k];
+            int o2 = ret[(k+1)%rsize];
+            double c1 = g_pathCost[o1][maxId];
+            double c2 = g_pathCost[maxId][o2];
+            double c3 = g_pathCost[o1][o2];
+            double c = c1 + c2 - c3;
+
+            if (minCost > c) {
+              minCost = c;
+
+              if (k == rsize-1) {
+                index = 0;
+              } else {
+                index = k+1;
+              }
+            }
+          }
+
+          assert(index >= 0);
+          checkList[maxId] = true;
+          ret.insert(ret.begin()+index, maxId);
+        }
+      }
+
+      return ret;
+    }
+
+    vector<Location> leaveMap(int oid) {
+      vector<Location> path;
       Object *obj = getObject(oid);
 
       fprintf(stderr,"leave from %d, y = %f, x = %f\n", oid, obj->y, obj->x);
@@ -360,17 +672,17 @@ class TerrainCrossing {
             int id = node.ids[i];
             double cy = id / S + 0.5;
             double cx = id % S + 0.5;
-            path.push_back(Coord(cy, cx));
+            path.push_back(Location(cy, cx));
           }
 
           if (y == 0) { 
-            path.push_back(Coord(0.0001, x+0.5));
+            path.push_back(Location(0.0001, x+0.5));
           } else if (x == 0) {
-            path.push_back(Coord(y+0.5, 0.0001));
+            path.push_back(Location(y+0.5, 0.0001));
           } else if (y == S-1) {
-            path.push_back(Coord(S-EPS/2, x+0.5));
+            path.push_back(Location(S-EPS/2, x+0.5));
           } else {
-            path.push_back(Coord(y+0.5, S-EPS/2));
+            path.push_back(Location(y+0.5, S-EPS/2));
           }
 
           break;
@@ -393,8 +705,81 @@ class TerrainCrossing {
       return path;
     }
 
-    Coord nid2coord(int nid) {
-      return Coord(nid / S + 0.5, nid % S + 0.5);
+    double costSeg(Location l1, Location l2) {
+      if (l1.manhattan(l2) == 0) {
+        return l1.dist(l2) * g_fieldCost[l1.yi][l1.xi];
+      }
+
+      int t1 = g_fieldCost[l1.yi][l1.xi];
+      int t2 = g_fieldCost[l2.yi][l2.xi];
+      double score = pow(t1 - t2, 2);
+
+      double x0, y0;
+      if (l1.yi == l2.yi) {
+        x0 = max(l1.xi, l2.xi);
+        y0 = l1.y + (l2.y - l1.y) * (x0 - l1.x) / (l2.x - l1.x);
+      } else {
+        y0 = max(l1.yi, l2.yi);
+        x0 = l1.x + (l2.x - l1.x) * (y0 - l1.y) / (l2.y - l1.y);
+      }
+
+      Location intersection(y0, x0);
+
+      return score + l1.dist(intersection) * t1 + l2.dist(intersection) * t2;
+    }
+
+    double calcCostDetail(vector<Location> &path) {
+      double score = 0.0;
+      int psize = path.size();
+
+      for (int i = 1; i < psize; i++) {
+        score += costSeg(path[i-1], path[i]);
+      }
+
+      return score;
+    }
+
+    double calcCost(vector<int> &path) {
+      double score = 0.0;
+      int psize = path.size();
+      int itemCount = 0;
+
+      for (int i = 0; i < psize; i++) {
+        int oid = path[i];
+        Object *obj = getObject(oid);
+
+        itemCount = (obj->isItem())? min(g_capacity, itemCount+1) : itemCount-1;
+        if (itemCount < 0) return DBL_MAX;
+
+        score += g_pathCost[path[i]][path[(i+1)%psize]];
+      }
+
+      return score;
+    }
+
+    bool isValidPath(vector<int> &path) {
+      int psize = path.size();
+      int cnt = 0;
+      ///fprintf(stderr,"psize = %d\n", psize);
+
+      for (int i = 0; i < psize; i++) {
+        int oid = path[i];
+        Object *obj = getObject(oid);
+
+        if (obj->isItem()) {
+          cnt = min(g_capacity, cnt+1);
+        } else {
+          cnt--;
+        }
+
+        if (cnt < 0) return false;
+      }
+
+      return true;
+    }
+
+    Location nid2coord(int nid) {
+      return Location(nid / S + 0.5, nid % S + 0.5);
     }
 
     Object *getObject(int oid) {
@@ -409,23 +794,23 @@ class TerrainCrossing {
       return &g_targetList[id];
     }
 
-    bool isNearPoint(Coord c1, Coord c2) {
+    inline bool isNearPoint(Location c1, Location c2) {
       return calcDist(c1.y, c1.x, c2.y, c2.x) < EPS;
     }
 
-    double calcDist(int y1, int x1, int y2, int x2) {
+    inline double calcDist(double y1, double x1, double y2, double x2) {
       return sqrt((y1-y2)*(y1-y2)+(x1-x2)*(x1-x2));
     }
 
-    bool isBorder(int y, int x) {
+    inline bool isBorder(int y, int x) {
       return (y == 0 || y == S-1 || x == 0 || x == S-1);
     }
 
-    bool isInside(int y, int x) {
+    inline bool isInside(int y, int x) {
       return (0 <= y && y < S && 0 <= x && x < S);
     }
 
-    bool isOutside(int y, int x) {
+    inline bool isOutside(int y, int x) {
       return (y < 0 || S <= y || x < 0 || S <= x);
     }
 };

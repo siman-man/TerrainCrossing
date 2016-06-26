@@ -2,7 +2,7 @@ require 'open3'
 
 PROBLEM_NAME = 'TerrainCrossing'
 ROUND_ID = 16704
-SEED = 2
+SEED = 10
 
 desc 'c++ file compile'
 task :default do
