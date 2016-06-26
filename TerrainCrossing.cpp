@@ -252,12 +252,15 @@ class TerrainCrossing {
 
       fprintf(stderr,"start =>\n");
 
-      /*
-      vector<int> path = createFirstPathNN();
-      assert(isValidPath(path));
-      */
-      vector<int> path = createFirstPathFI();
-      assert(isValidPath(path));
+      vector<int> path1 = createFirstPathNN();
+      assert(isValidPath(path1));
+      vector<int> path2 = createFirstPathFI();
+      assert(isValidPath(path2));
+
+      double score1 = calcCost(path1);
+      double score2 = calcCost(path2);
+
+      vector<int> path = (score1 < score2)? path1 : path2;
 
       path = cleanPath(path);
       vector<Location> result;
@@ -313,6 +316,7 @@ class TerrainCrossing {
 
       assert(result[0].locked);
       fixPath(result);
+      assert(isValidAnswer(result));
       ret = path2answer(result);
 
       return ret;
@@ -363,9 +367,8 @@ class TerrainCrossing {
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
       vector<int> goodPath = path;
-      ll startCycle = getCycle();
-      double timeLimit = 3.0;
-      double currentTime = getTime(startCycle);
+      double timeLimit = 5.0;
+      double currentTime = getTime(g_startCycle);
       double minCost = calcCost(bestPath);
       double goodCost = minCost;
       fprintf(stderr,"minCost = %f\n", minCost);
@@ -413,7 +416,7 @@ class TerrainCrossing {
         */
 
         T *= alpha;
-        currentTime = getTime(startCycle);
+        currentTime = getTime(g_startCycle);
         tryCount++;
       }
 
@@ -757,6 +760,22 @@ class TerrainCrossing {
       return score;
     }
 
+    bool isValidAnswer(vector<Location> &path) {
+      int psize = path.size();
+
+      for (int i = 0; i < psize; i++) {
+        Location l = path[i];
+
+        if (i == 364) {
+          fprintf(stderr,"y = %f, x = %f\n", l.y, l.x);
+        }
+
+        if (isNearInnerBorder(l)) return false;
+      }
+
+      return true;
+    }
+
     bool isValidPath(vector<int> &path) {
       int psize = path.size();
       int cnt = 0;
@@ -796,6 +815,15 @@ class TerrainCrossing {
 
     inline bool isNearPoint(Location c1, Location c2) {
       return calcDist(c1.y, c1.x, c2.y, c2.x) < EPS;
+    }
+
+    bool isNearInnerBorder(Location l) {
+      double inCellY = l.y - l.yi;
+      double inCellX = l.x - l.xi;
+      return ((l.xi > 0 && inCellX < EPS) || 
+              (l.yi > 0 && inCellY < EPS) ||
+              (l.xi < S-1 && 1 - inCellX < EPS) ||
+              (l.yi < S-1 && 1 - inCellY < EPS));
     }
 
     inline double calcDist(double y1, double x1, double y2, double x2) {
