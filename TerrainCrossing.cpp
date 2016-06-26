@@ -387,7 +387,11 @@ class TerrainCrossing {
           c2 = xor128() % psize;
         } while (c1 == c2);
 
-        swapObject(path, c1, c2);
+        if (xor128()%2 == 0) {
+          swapObject(path, c1, c2);
+        } else {
+          insertObject(path, c1, c2);
+        }
         double cost = calcCost(path);
 
         if (cost == DBL_MAX) {
@@ -398,7 +402,8 @@ class TerrainCrossing {
           minCost = cost;
           bestPath = path;
         } else {
-          swapObject(path, c1, c2);
+          //swapObject(path, c1, c2);
+          path = bestPath;
         }
 
         /*
@@ -429,6 +434,12 @@ class TerrainCrossing {
       int temp = path[c1];
       path[c1] = path[c2];
       path[c2] = temp;
+    }
+
+    void insertObject(vector<int> &path, int c1, int c2) {
+      int temp = path[c1];
+      path.erase(path.begin()+c1);
+      path.insert(path.begin()+c2, temp);
     }
 
     vector<double> path2answer(vector<Location> path) {
