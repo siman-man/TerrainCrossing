@@ -321,7 +321,7 @@ class TerrainCrossing {
         }
       }
 
-      vector<Location> endPath = leaveMap(path[path.size()-1]);
+      vector<Location> endPath = leaveMap(path[2*N-1]);
       int esize = endPath.size();
       fprintf(stderr,"end path size = %d\n", esize);
       for (int i = 0; i < esize; i++) {
@@ -341,9 +341,8 @@ class TerrainCrossing {
 
     void fixPath(vector<Location> &path) {
       int psize = path.size();
-      double minCost = calcCostDetail(path);
 
-      double timeLimit = 9.5;
+      double timeLimit = 10.0;
       double currentTime = getTime(g_startCycle);
       ll tryCount = 0;
 
@@ -352,11 +351,12 @@ class TerrainCrossing {
         Location l = path[index];
         if (l.locked) continue;
         Location temp = l;
+        double s1 = costSeg(path[index-1], path[index]) + costSeg(path[index], path[index+1]);
 
-        int d1 = xor128()%10;
-        int d2 = xor128()%10;
-        l.y += 0.01 * d1 - 0.05;
-        l.x += 0.01 * d2 - 0.05;
+        int d1 = xor128()%40;
+        int d2 = xor128()%40;
+        l.y += 0.0025 * d1 - 0.05;
+        l.x += 0.0025 * d2 - 0.05;
         int nid = floor(l.y)*S + floor(l.x);
 
         if (l.y - l.yi < EPS) continue;
@@ -366,11 +366,10 @@ class TerrainCrossing {
 
         if (nid != l.nid) continue;
         path[index] = l;
-        double cost = calcCostDetail(path);
 
-        if (minCost > cost) {
-          minCost = cost;
-        } else {
+        double s2 = costSeg(path[index-1], path[index]) + costSeg(path[index], path[index+1]);
+
+        if (s1 < s2) {
           path[index] = temp;
         }
 
@@ -383,7 +382,7 @@ class TerrainCrossing {
 
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
-      double timeLimit = 7.0;
+      double timeLimit = 8.0;
       double currentTime = getTime(g_startCycle);
       double minCost = calcCost(bestPath);
       fprintf(stderr,"minCost = %f\n", minCost);
@@ -411,6 +410,7 @@ class TerrainCrossing {
             crossObject(path, c1, c2);
             break;
         }
+
         double cost = calcCost(path);
 
         if (cost == DBL_MAX) {
@@ -867,8 +867,8 @@ class TerrainCrossing {
         int oid = path[i];
         Object *obj = getObject(oid);
 
-        itemCount = (obj->isItem())? min(g_capacity, itemCount+1) : itemCount-1;
-        if (itemCount < 0) return DBL_MAX;
+        itemCount = (obj->isItem())? itemCount+1 : itemCount-1;
+        if (itemCount < 0 || itemCount > g_capacity) return DBL_MAX;
 
         score += g_pathCost[path[i]][path[(i+1)%psize]];
 
