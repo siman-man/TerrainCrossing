@@ -342,7 +342,7 @@ class TerrainCrossing {
     void fixPath(vector<Location> &path) {
       int psize = path.size();
 
-      double timeLimit = 10.0;
+      double timeLimit = MAX_TIME;
       double currentTime = getTime(g_startCycle);
       ll tryCount = 0;
 
@@ -382,7 +382,7 @@ class TerrainCrossing {
 
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
-      double timeLimit = 8.0;
+      double timeLimit = MAX_TIME-1.0;
       double currentTime = getTime(g_startCycle);
       double minCost = calcCost(bestPath);
       fprintf(stderr,"minCost = %f\n", minCost);
@@ -462,6 +462,22 @@ class TerrainCrossing {
         path[j] = temp;
         i++;
         j--;
+      }
+    }
+
+    void opt2(vector<int> &path) {
+      for (int i = 0; i < N-1; i++) {
+        for (int j = i+1; j < N; j++) {
+          double a = g_pathCost[i][i+1];
+          double b = g_pathCost[j][j-1];
+          double c = g_pathCost[i][j-1];
+          double d = g_pathCost[j][i+1];
+
+          if (a + b > c + d) {
+            swapObject(path, i, j);
+            return;
+          }
+        }
       }
     }
 
@@ -862,13 +878,17 @@ class TerrainCrossing {
       double score = 0.0;
       int psize = path.size();
       int itemCount = 0;
+      bool valid = true;
 
       for (int i = 0; i < psize; i++) {
         int oid = path[i];
         Object *obj = getObject(oid);
 
         itemCount = (obj->isItem())? itemCount+1 : itemCount-1;
-        if (itemCount < 0 || itemCount > g_capacity) return DBL_MAX;
+        if (itemCount < 0 || itemCount > g_capacity) {
+          valid = false;
+          //return DBL_MAX;
+        }
 
         score += g_pathCost[path[i]][path[(i+1)%psize]];
 
@@ -876,6 +896,8 @@ class TerrainCrossing {
           score += obj->leaveCost;
         }
       }
+
+      if (!valid) score *= 1.05;
 
       return score;
     }
