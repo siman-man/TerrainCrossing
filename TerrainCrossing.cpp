@@ -190,7 +190,7 @@ class TerrainCrossing {
 
       for (int i = 0; i < 2*N; i++) {
         for (int j = 0; j < 2*N; j++) {
-          g_pathCost[i][j] = INF;
+          g_pathCost[i][j] = DBL_MAX;
         }
       }
 
@@ -216,7 +216,6 @@ class TerrainCrossing {
       }
 
       calcPathCost();
-      setLeaveCost();
     }
 
     void calcPathCost() {
@@ -224,22 +223,6 @@ class TerrainCrossing {
 
       for (int i = 0; i < 2*N; i++) {
         calcMinPathCost(i);
-      }
-    }
-
-    void setLeaveCost() {
-      for (int i = 0; i < N; i++) {
-        Object *obj = getObject(i);
-
-        for (int y = 0; y < S; y++) {
-          obj->leaveCost = min(obj->leaveCost, g_pathCost[y][0]);
-          obj->leaveCost = min(obj->leaveCost, g_pathCost[y][S-1]);
-        }
-
-        for (int x = 0; x < S; x++) {
-          obj->leaveCost = min(obj->leaveCost, g_pathCost[0][x]);
-          obj->leaveCost = min(obj->leaveCost, g_pathCost[S-1][x]);
-        }
       }
     }
 
@@ -260,6 +243,10 @@ class TerrainCrossing {
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
+
+        if (y == 0 || y == S-1 || x == 0 || x == S-1) {
+          obj->leaveCost = min(obj->leaveCost, node.cost);
+        }
 
         int size = g_field[y][x].objIdList.size();
         for (int i = 0; i < size; i++) {
@@ -408,7 +395,7 @@ class TerrainCrossing {
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
       vector<int> goodPath = path;
-      double timeLimit = 5.0;
+      double timeLimit = 7.0;
       double currentTime = getTime(g_startCycle);
       double minCost = calcCost(bestPath);
       double goodCost = minCost;
@@ -418,20 +405,24 @@ class TerrainCrossing {
       int c1, c2;
       int psize = path.size();
 
-      double T = 10000.0;
-      double k = 10.0;
-      double alpha = 0.999;
-
       while (currentTime < timeLimit) {
         do {
           c1 = xor128() % psize;
           c2 = xor128() % psize;
         } while (c1 == c2);
 
-        if (xor128()%2 == 0) {
-          swapObject(path, c1, c2);
-        } else {
-          insertObject(path, c1, c2);
+        int type = xor128()%3;
+
+        switch (type) {
+          case 0:
+            swapObject(path, c1, c2);
+            break;
+          case 1:
+            insertObject(path, c1, c2);
+            break;
+          case 2:
+            crossObject(path, c1, c2);
+            break;
         }
         double cost = calcCost(path);
 
@@ -443,25 +434,16 @@ class TerrainCrossing {
           minCost = cost;
           bestPath = path;
         } else {
-          //swapObject(path, c1, c2);
-          path = bestPath;
+          switch (type) {
+            case 0:
+              swapObject(path, c1, c2);
+              break;
+            default:
+              path = bestPath;
+              break;
+          }
         }
 
-        /*
-        double diffCost = goodCost - minCost;
-
-        if (goodCost > cost) {
-          goodCost = cost;
-          goodPath = path;
-        } else if (xor128()%100 < 100*exp(diffCost/(k*T))) {
-          goodCost = cost;
-          goodPath = path;
-        } else {
-          swapObject(path, c1, c2);
-        }
-        */
-
-        T *= alpha;
         currentTime = getTime(g_startCycle);
         tryCount++;
       }
@@ -481,6 +463,19 @@ class TerrainCrossing {
       int temp = path[c1];
       path.erase(path.begin()+c1);
       path.insert(path.begin()+c2, temp);
+    }
+
+    void crossObject(vector<int> &path, int c1, int c2) {
+      int i = min(c1, c2);
+      int j = max(c1, c2);
+
+      while (i < j) {
+        int temp = path[i];
+        path[i] = path[j];
+        path[j] = temp;
+        i++;
+        j--;
+      }
     }
 
     vector<double> path2answer(vector<Location> path) {
@@ -652,6 +647,7 @@ class TerrainCrossing {
       int minId = -1;
       for (int i = 0; i < N; i++) {
         Item *item = getItem(i);
+        //double dist = item->leaveCost;
         double dist = calcDist(item->y, item->x, S/2.0, S/2.0);
 
         if (minDist > dist) {
@@ -687,11 +683,21 @@ class TerrainCrossing {
             Target *target = getTarget(j);
             if (checkList[target->id]) continue;
 
-            double dist = calcDist(target->y, target->x, S/2.0, S/2.0);
+            double minCost = DBL_MAX;
+            minId = -1;
 
-            if (maxDist < dist) {
-              maxDist = dist;
-              maxId = target->id;
+            for (int k = 0; k < ret.size(); k++) {
+              double cost = g_pathCost[target->id][ret[k]];
+
+              if (minCost > cost) {
+                minCost = cost;
+                minId = target->id;
+              }
+            }
+
+            if (maxDist < minCost) {
+              maxDist = minCost;
+              maxId = minId;
             }
           }
 
@@ -725,10 +731,19 @@ class TerrainCrossing {
             Item *item = getItem(j);
             if (checkList[item->id]) continue;
 
-            double dist = calcDist(item->y, item->x, S/2.0, S/2.0);
+            double minCost = DBL_MAX;
+            minId = -1;
+            for (int k = 0; k < ret.size(); k++) {
+              double cost = g_pathCost[item->id][ret[k]];
 
-            if (maxDist < dist) {
-              maxDist = dist;
+              if (minCost > cost) {
+                minCost = cost;
+                minId = item->id;
+              }
+            }
+
+            if (maxDist < minCost) {
+              maxDist = minCost;
               maxId = item->id;
             }
           }
@@ -823,7 +838,7 @@ class TerrainCrossing {
       return path;
     }
 
-    double costSeg(Location l1, Location l2) {
+    double costSeg(Location &l1, Location &l2) {
       if (l1.manhattan(l2) == 0) {
         return l1.dist(l2) * g_fieldCost[l1.yi][l1.xi];
       }
@@ -870,6 +885,10 @@ class TerrainCrossing {
         if (itemCount < 0) return DBL_MAX;
 
         score += g_pathCost[path[i]][path[(i+1)%psize]];
+
+        if (i == 0 || i == psize-1) {
+          score += obj->leaveCost;
+        }
       }
 
       return score;
@@ -921,11 +940,11 @@ class TerrainCrossing {
     }
 
     Item *getItem(int id) {
-      return &g_itemList[id];
+      return &g_objectList[id];
     }
 
     Target *getTarget(int id) {
-      return &g_targetList[id];
+      return &g_objectList[N+id];
     }
 
     inline bool isNearPoint(Location c1, Location c2) {
