@@ -198,13 +198,8 @@ class TerrainCrossing {
 
         Object obj(i, UNKNOWN, y, x);
         obj.nid = iy * S + ix;
+        obj.type = (i < N)? ITEM : TARGET;
         g_field[iy][ix].objIdList.push_back(i);
-
-        if (i < N) {
-          obj.type = ITEM;
-        } else {
-          obj.type = TARGET;
-        }
 
         g_objectList.push_back(obj);
       }
@@ -388,11 +383,9 @@ class TerrainCrossing {
 
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
-      vector<int> goodPath = path;
       double timeLimit = 7.0;
       double currentTime = getTime(g_startCycle);
       double minCost = calcCost(bestPath);
-      double goodCost = minCost;
       fprintf(stderr,"minCost = %f\n", minCost);
       ll tryCount = 0;
       ll invalidCount = 0;
