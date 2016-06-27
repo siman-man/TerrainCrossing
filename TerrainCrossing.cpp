@@ -104,11 +104,13 @@ struct Node {
   double y;
   double x;
   double cost;
+  int beforeDirect;
   vector<int> ids;
 
   Node(int cid, double cost) {
     this->cid = cid;
     this->cost = cost;
+    this->beforeDirect = -1;
   }
 
   Node dup() {
@@ -116,6 +118,7 @@ struct Node {
     node.y = y;
     node.x = x;
     node.ids = ids;
+    node.beforeDirect = beforeDirect;
 
     return node;
   }
@@ -270,8 +273,13 @@ class TerrainCrossing {
 
           int nid = ny*S + nx;
           Node next = node.dup();
+          next.beforeDirect = i;
           next.cid = nid;
-          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          if ((node.beforeDirect % 2) != (i % 2)) {
+            next.cost = node.cost + 0.9*g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          } else {
+            next.cost = node.cost + g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          }
           //next.ids.push_back(nid);
           pque.push(next);
         }
