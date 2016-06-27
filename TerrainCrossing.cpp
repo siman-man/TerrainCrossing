@@ -26,8 +26,6 @@ const int TARGET = 1;
 const ll CYCLE_PER_SEC = 2400000000;
 double MAX_TIME = 10.0;
 
-const int INF = 99999;
-
 const int DY[4] = {-1, 0, 0, 1};
 const int DX[4] = {0, -1, 1, 0};
 
@@ -166,8 +164,6 @@ ll g_startCycle;
 
 Cell g_field[MAX_S][MAX_S];
 vector<Object> g_objectList;
-vector<Object> g_itemList;
-vector<Object> g_targetList;
 
 class TerrainCrossing {
   public:
@@ -206,10 +202,8 @@ class TerrainCrossing {
 
         if (i < N) {
           obj.type = ITEM;
-          g_itemList.push_back(obj);
         } else {
           obj.type = TARGET;
-          g_targetList.push_back(obj);
         }
 
         g_objectList.push_back(obj);
@@ -608,9 +602,8 @@ class TerrainCrossing {
       vector<int> ret;
       map<int, bool> checkList;
 
-
-      ret.push_back(g_itemList[0].id);
-      checkList[g_itemList[0].id] = true;
+      ret.push_back(g_objectList[0].id);
+      checkList[g_objectList[0].id] = true;
 
       for (int i = 0; i < 2*N-1; i++) {
         int from = ret[i];
