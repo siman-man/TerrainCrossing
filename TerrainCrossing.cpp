@@ -465,7 +465,7 @@ class TerrainCrossing {
       }
     }
 
-    vector<double> path2answer(vector<Location> path) {
+    vector<double> path2answer(vector<Location> &path) {
       vector<double> answer;
 
       int psize = path.size();
@@ -952,10 +952,6 @@ class TerrainCrossing {
 
     inline bool isBorder(int y, int x) {
       return (y == 0 || y == S-1 || x == 0 || x == S-1);
-    }
-
-    inline bool isInside(int y, int x) {
-      return (0 <= y && y < S && 0 <= x && x < S);
     }
 
     inline bool isOutside(int y, int x) {
