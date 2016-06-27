@@ -81,6 +81,24 @@ struct Location {
   }
 };
 
+struct BeamNode {
+  map<int, bool> checkList;
+  int cid;
+  double cost;
+  vector<int> path;
+  int itemCount;
+
+  BeamNode() {
+    this->cid = -1;
+    this->cost = 0.0;
+    this->itemCount = 0;
+  }
+
+  bool operator >(const BeamNode &bn) const {
+    return cost - 5.0 * itemCount > bn.cost - 5.0 * bn.itemCount;
+  }
+};
+
 struct Node {
   int cid;
   double y;
@@ -113,12 +131,14 @@ struct Object {
   int type;
   double y;
   double x;
+  double leaveCost;
 
   Object(int id, int type, double y, double x) {
     this->id = id;
     this->type = type;
     this->y = y;
     this->x = x;
+    this->leaveCost = DBL_MAX;
   }
 
   bool isItem() {
@@ -193,6 +213,7 @@ class TerrainCrossing {
       }
 
       calcPathCost();
+      setLeaveCost();
     }
 
     void calcPathCost() {
@@ -200,6 +221,22 @@ class TerrainCrossing {
 
       for (int i = 0; i < 2*N; i++) {
         calcMinPathCost(i);
+      }
+    }
+
+    void setLeaveCost() {
+      for (int i = 0; i < N; i++) {
+        Object *obj = getObject(i);
+
+        for (int y = 0; y < S; y++) {
+          obj->leaveCost = min(obj->leaveCost, g_pathCost[y][0]);
+          obj->leaveCost = min(obj->leaveCost, g_pathCost[y][S-1]);
+        }
+
+        for (int x = 0; x < S; x++) {
+          obj->leaveCost = min(obj->leaveCost, g_pathCost[0][x]);
+          obj->leaveCost = min(obj->leaveCost, g_pathCost[S-1][x]);
+        }
       }
     }
 
@@ -502,9 +539,72 @@ class TerrainCrossing {
       return path;
     }
 
+    vector<int> createFirstPathMNN(int BEAM_WIDTH = 1) {
+      BeamNode root;
+      queue<BeamNode> que;
+      que.push(root);
+
+      for (int i = 0; i < 2*N; i++) {
+        priority_queue<BeamNode, vector<BeamNode>, greater<BeamNode> > pque;
+        int qsize = que.size();
+
+        fprintf(stderr,"queue size = %d\n", qsize);
+
+        while (!que.empty()) {
+          BeamNode node = que.front(); que.pop();
+          int itemCount = node.itemCount;
+
+          for (int oid = 0; oid < 2*N; oid++) {
+            if (itemCount == g_capacity && oid < N) continue;
+            if (itemCount == 0 && oid >= N) continue;
+            if (node.cid == oid) continue;
+            if (node.checkList[oid]) continue;
+
+            assert(node.cid != oid);
+            Object *obj = getObject(oid);
+
+            BeamNode cand;
+            cand.cid = oid;
+            cand.path = node.path;
+            cand.checkList = node.checkList;
+            cand.checkList[oid] = true;
+            cand.path.push_back(oid);
+            if (i == 0) {
+              cand.cost = obj->leaveCost;
+            } else if (i == 2*N-1) {
+              cand.cost = node.cost + g_pathCost[node.cid][oid] + obj->leaveCost;
+            } else {
+              cand.cost = node.cost + g_pathCost[node.cid][oid];
+            }
+            if (obj->isItem()) {
+              cand.itemCount = min(g_capacity, itemCount+1);
+            } else {
+              cand.itemCount = itemCount-1;
+            }
+
+            assert(cand.itemCount >= 0);
+            pque.push(cand);
+          }
+        }
+
+        for (int k = 0; k < BEAM_WIDTH && !pque.empty(); k++) {
+          BeamNode node = pque.top(); pque.pop();
+          que.push(node);
+        }
+      }
+
+      assert(!que.empty());
+
+      BeamNode node = que.front();
+
+      assert(node.path.size() == 2*N);
+      return node.path;
+    }
+
     vector<int> createFirstPathNN() {
       vector<int> ret;
       map<int, bool> checkList;
+
 
       ret.push_back(g_itemList[0].id);
       checkList[g_itemList[0].id] = true;
