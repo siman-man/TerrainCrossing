@@ -113,20 +113,28 @@ struct Node {
   int cid;
   double y;
   double x;
+  int yi;
+  int xi;
   double cost;
+  int beforeY;
+  int beforeX;
   int beforeDirect;
+  int length;
   vector<int> ids;
 
   Node(int cid, double cost) {
     this->cid = cid;
     this->cost = cost;
     this->beforeDirect = -1;
+    this->length = 0;
   }
 
   Node dup() {
     Node node(cid, cost);
     node.y = y;
     node.x = x;
+    node.yi = yi;
+    node.xi = xi;
     node.ids = ids;
     node.beforeDirect = beforeDirect;
 
@@ -230,6 +238,8 @@ class TerrainCrossing {
     void calcMinPathCost(int oid) {
       Object *obj = getObject(oid);
       Node root(obj->nid, 0.0);
+      root.yi = floor(obj->y);
+      root.xi = floor(obj->x);
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
@@ -239,8 +249,8 @@ class TerrainCrossing {
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
 
-        int y = node.cid / S;
-        int x = node.cid % S;
+        int y = node.yi;
+        int x = node.xi;
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
@@ -262,11 +272,27 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.beforeDirect = i;
+          next.length = node.length + 1;
+          next.yi = ny;
+          next.xi = nx;
+          next.beforeY = y;
+          next.beforeX = x;
           next.cid = nid;
-          if ((node.beforeDirect % 2) != (i % 2)) {
-            next.cost = node.cost + 0.9*g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+
+          double costB, costC;
+          if (node.length == 0) {
+            costB = costSeg(Location(obj->y, obj->x), Location(ny+0.5, nx+0.5));
           } else {
-            next.cost = node.cost + g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+            costB = costSeg(Location(y+0.5, x+0.5), Location(ny+0.5, nx+0.5));
+          }
+          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+
+          if (node.length == 0) {
+            next.cost = costB + costC;
+          } else if ((node.beforeDirect % 2) != (i % 2)) {
+            next.cost = node.cost + 0.9*costB + costC;
+          } else {
+            next.cost = node.cost + costB + costC;
           }
           //next.ids.push_back(nid);
           pque.push(next);
@@ -595,7 +621,19 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
-          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          next.beforeDirect = i;
+          next.length = node.length + 1;
+
+          double costB, costC;
+
+          if (node.length == 0) {
+            costB = costSeg(Location(fromObj->y, fromObj->x), Location(ny+0.5, nx+0.5));
+          } else {
+            costB = costSeg(Location(y+0.5, x+0.5), Location(ny+0.5, nx+0.5));
+          }
+          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+
+          next.cost += costB + costC;
           next.ids.push_back(nid);
           pque.push(next);
         }
@@ -897,7 +935,7 @@ class TerrainCrossing {
       return path;
     }
 
-    double costSeg(Location &l1, Location &l2) {
+    double costSeg(Location l1, Location l2) {
       if (l1.manhattan(l2) == 0) {
         return l1.dist(l2) * g_fieldCost[l1.yi][l1.xi];
       }
