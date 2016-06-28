@@ -122,19 +122,19 @@ struct Node {
   int length;
   vector<int> ids;
 
-  Node(int cid, double cost) {
+  Node(int cid, double cost, double y, double x) {
     this->cid = cid;
     this->cost = cost;
+    this->y = y;
+    this->x = x;
+    this->yi = floor(y);
+    this->xi = floor(x);
     this->beforeDirect = -1;
     this->length = 0;
   }
 
   Node dup() {
-    Node node(cid, cost);
-    node.y = y;
-    node.x = x;
-    node.yi = yi;
-    node.xi = xi;
+    Node node(cid, cost, y, x);
     node.ids = ids;
     node.beforeDirect = beforeDirect;
 
@@ -237,9 +237,7 @@ class TerrainCrossing {
 
     void calcMinPathCost(int oid) {
       Object *obj = getObject(oid);
-      Node root(obj->nid, 0.0);
-      root.yi = floor(obj->y);
-      root.xi = floor(obj->x);
+      Node root(obj->nid, 0.0, obj->y, obj->x);
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
@@ -483,20 +481,19 @@ class TerrainCrossing {
             break;
         }
 
-        Result result = calcCost(path, penalty);
-        double cost = result.cost;
+        result = calcCost(path, penalty);
 
         if (!result.valid) {
           invalidCount++;
         }
 
-        if (minCost > cost && result.valid) {
-          minCost = cost;
+        if (minCost > result.cost && result.valid) {
+          minCost = result.cost;
           bestPath = path;
         }
 
-        if (goodCost > cost) {
-          goodCost = cost;
+        if (goodCost > result.cost) {
+          goodCost = result.cost;
           goodPath = path;
         } else {
           switch (type) {
@@ -516,14 +513,17 @@ class TerrainCrossing {
         if (remainTime < 2.0 && penalty < 100) {
           //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
           penalty = 10000.0;
-          goodCost = DBL_MAX;
+          result = calcCost(goodPath, penalty);
+          goodCost = result.cost;
         } else if (remainTime < 4.0 && penalty < 10) {
           penalty = 30.0;
-          goodCost = DBL_MAX;
+          result = calcCost(goodPath, penalty);
+          goodCost = result.cost;
         } else if (remainTime < 5.0 && penalty < 5) {
           //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
           penalty = 5.0;
-          goodCost = DBL_MAX;
+          result = calcCost(goodPath, penalty);
+          goodCost = result.cost;
         }
       }
 
@@ -585,7 +585,7 @@ class TerrainCrossing {
       Object *fromObj = getObject(from);
       Object *toObj = getObject(to);
 
-      Node root(fromObj->nid, 0.0);
+      Node root(fromObj->nid, 0.0, fromObj->y, fromObj->x);
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
@@ -884,7 +884,7 @@ class TerrainCrossing {
       fprintf(stderr,"leave from %d, y = %f, x = %f\n", oid, obj->y, obj->x);
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
-      Node root(obj->nid, 0.0);
+      Node root(obj->nid, 0.0, obj->y, obj->x);
       pque.push(root);
       map<int, bool> checkList;
 
