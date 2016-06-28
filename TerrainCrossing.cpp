@@ -81,11 +81,11 @@ struct Location {
 };
 
 struct BeamNode {
-  bitset<MAX_N> checkList;
-  int cid;
   double cost;
-  vector<int> path;
+  int cid;
   int itemCount;
+  bitset<MAX_N> checkList;
+  vector<int> path;
 
   BeamNode() {
     this->checkList = 0;
@@ -410,7 +410,11 @@ class TerrainCrossing {
           c2 = xor128() % psize;
         } while (c1 == c2);
 
-        int type = xor128()%3;
+        int type = xor128()%4;
+
+        if (type == 3 && (c1 > psize-3 || c2 > psize-3)) {
+          continue;
+        }
 
         switch (type) {
           case 0:
@@ -421,6 +425,9 @@ class TerrainCrossing {
             break;
           case 2:
             crossObject(path, c1, c2);
+            break;
+          case 3:
+            insertObject2(path, c1, c2);
             break;
         }
 
@@ -463,6 +470,15 @@ class TerrainCrossing {
       int temp = path[c1];
       path.erase(path.begin()+c1);
       path.insert(path.begin()+c2, temp);
+    }
+
+    void insertObject2(vector<int> &path, int c1, int c2) {
+      int temp = path[c1];
+      int temp2 = path[c1+1];
+      path.erase(path.begin()+c1);
+      path.erase(path.begin()+c1);
+      path.insert(path.begin()+c2, temp);
+      path.insert(path.begin()+c2, temp2);
     }
 
     void crossObject(vector<int> &path, int c1, int c2) {
@@ -542,16 +558,14 @@ class TerrainCrossing {
       return path;
     }
 
-    vector<int> createFirstPathBeam(int BEAM_WIDTH = 1000) {
+    vector<int> createFirstPathBeam(int BEAM_WIDTH = 2000) {
       BeamNode root;
       queue<BeamNode> que;
       que.push(root);
+      BeamNode cand;
 
       for (int i = 0; i < 2*N; i++) {
         priority_queue<BeamNode, vector<BeamNode>, greater<BeamNode> > pque;
-        int qsize = que.size();
-
-        //fprintf(stderr,"queue size = %d\n", qsize);
 
         while (!que.empty()) {
           BeamNode node = que.front(); que.pop();
@@ -566,12 +580,12 @@ class TerrainCrossing {
             assert(node.cid != oid);
             Object *obj = getObject(oid);
 
-            BeamNode cand;
             cand.cid = oid;
             cand.path = node.path;
             cand.checkList = node.checkList;
             cand.checkList.set(oid);
             cand.path.push_back(oid);
+
             if (i == 0) {
               cand.cost = obj->leaveCost;
             } else if (i == 2*N-1) {
@@ -580,7 +594,7 @@ class TerrainCrossing {
               cand.cost = node.cost + g_pathCost[node.cid][oid];
             }
             if (obj->isItem()) {
-              cand.itemCount = min(g_capacity, itemCount+1);
+              cand.itemCount = itemCount+1;
             } else {
               cand.itemCount = itemCount-1;
             }
