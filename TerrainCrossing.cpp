@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sys/time.h>
+#include <bitset>
 #include <limits>
 #include <map>
 #include <math.h>
@@ -80,20 +81,21 @@ struct Location {
 };
 
 struct BeamNode {
-  map<int, bool> checkList;
+  bitset<MAX_N> checkList;
   int cid;
   double cost;
   vector<int> path;
   int itemCount;
 
   BeamNode() {
+    this->checkList = 0;
     this->cid = -1;
     this->cost = 0.0;
     this->itemCount = 0;
   }
 
   bool operator >(const BeamNode &bn) const {
-    return cost - 5.0 * itemCount > bn.cost - 5.0 * bn.itemCount;
+    return cost > bn.cost;
   }
 };
 
@@ -269,7 +271,18 @@ class TerrainCrossing {
 
       fprintf(stderr,"start =>\n");
 
-      vector<int> path1 = createFirstPathNN();
+      vector<int> path1;
+
+      if (N <= 50) {
+        path1 = createFirstPathBeam();
+      } else {
+        path1 = createFirstPathNN();
+      }
+
+      double currentTime = getTime(g_startCycle);
+      fprintf(stderr,"current time = %f\n", currentTime);
+
+      cerr.flush();
       assert(isValidPath(path1));
       vector<int> path2 = createFirstPathFI();
       assert(isValidPath(path2));
@@ -529,7 +542,7 @@ class TerrainCrossing {
       return path;
     }
 
-    vector<int> createFirstPathMNN(int BEAM_WIDTH = 1) {
+    vector<int> createFirstPathBeam(int BEAM_WIDTH = 1000) {
       BeamNode root;
       queue<BeamNode> que;
       que.push(root);
@@ -538,7 +551,7 @@ class TerrainCrossing {
         priority_queue<BeamNode, vector<BeamNode>, greater<BeamNode> > pque;
         int qsize = que.size();
 
-        fprintf(stderr,"queue size = %d\n", qsize);
+        //fprintf(stderr,"queue size = %d\n", qsize);
 
         while (!que.empty()) {
           BeamNode node = que.front(); que.pop();
@@ -557,7 +570,7 @@ class TerrainCrossing {
             cand.cid = oid;
             cand.path = node.path;
             cand.checkList = node.checkList;
-            cand.checkList[oid] = true;
+            cand.checkList.set(oid);
             cand.path.push_back(oid);
             if (i == 0) {
               cand.cost = obj->leaveCost;
@@ -634,7 +647,7 @@ class TerrainCrossing {
       for (int i = 0; i < N; i++) {
         Item *item = getItem(i);
         //double dist = item->leaveCost;
-        double dist = calcDist(item->y, item->x, S/2.0, S/2.0);
+        double dist = calcDist(item->y, item->x, S/2.0, S/2.0) - item->leaveCost;
 
         if (minDist > dist) {
           minDist = dist;
@@ -859,9 +872,9 @@ class TerrainCrossing {
     }
 
     double calcCost(vector<int> &path) {
-      double score = 0.0;
       int psize = path.size();
       int itemCount = 0;
+      double score = g_objectList[path[0]].leaveCost;
 
       for (int i = 0; i < psize-1; i++) {
         int oid = path[i];
@@ -871,13 +884,9 @@ class TerrainCrossing {
         if (itemCount < 0 || itemCount > g_capacity) return DBL_MAX;
 
         score += g_pathCost[path[i]][path[i+1]];
-
-        if (i == 0) {
-          score += obj->leaveCost;
-        }
       }
 
-      score += g_objectList[psize-1].leaveCost;
+      score += g_objectList[path[psize-1]].leaveCost;
 
       return score;
     }
