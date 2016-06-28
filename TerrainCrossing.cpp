@@ -863,19 +863,21 @@ class TerrainCrossing {
       int psize = path.size();
       int itemCount = 0;
 
-      for (int i = 0; i < psize; i++) {
+      for (int i = 0; i < psize-1; i++) {
         int oid = path[i];
         Object *obj = getObject(oid);
 
         itemCount = (obj->isItem())? itemCount+1 : itemCount-1;
         if (itemCount < 0 || itemCount > g_capacity) return DBL_MAX;
 
-        score += g_pathCost[path[i]][path[(i+1)%psize]];
+        score += g_pathCost[path[i]][path[i+1]];
 
-        if (i == 0 || i == psize-1) {
+        if (i == 0) {
           score += obj->leaveCost;
         }
       }
+
+      score += g_objectList[psize-1].leaveCost;
 
       return score;
     }
