@@ -656,12 +656,11 @@ class TerrainCrossing {
           int itemCount = node.itemCount;
 
           for (int oid = 0; oid < 2*N; oid++) {
+            if (node.checkList[oid]) continue;
+            if (node.cid == oid) continue;
             if (itemCount == g_capacity && oid < N) continue;
             if (itemCount == 0 && oid >= N) continue;
-            if (node.cid == oid) continue;
-            if (node.checkList[oid]) continue;
 
-            assert(node.cid != oid);
             Object *obj = getObject(oid);
 
             cand.cid = oid;
@@ -683,7 +682,6 @@ class TerrainCrossing {
               cand.itemCount = itemCount-1;
             }
 
-            assert(cand.itemCount >= 0);
             pque.push(cand);
           }
         }
