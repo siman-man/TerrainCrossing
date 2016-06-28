@@ -80,6 +80,16 @@ struct Location {
   }
 };
 
+struct Result {
+  double cost;
+  bool valid;
+
+  Result(double cost = DBL_MAX, bool valid = true) {
+    this->cost = cost;
+    this->valid = valid;
+  }
+};
+
 struct BeamNode {
   double cost;
   int cid;
@@ -287,8 +297,10 @@ class TerrainCrossing {
       vector<int> path2 = createFirstPathFI();
       assert(isValidPath(path2));
 
-      double score1 = calcCost(path1);
-      double score2 = calcCost(path2);
+      Result result1 = calcCost(path1);
+      Result result2 = calcCost(path2);
+      double score1 = result1.cost;
+      double score2 = result2.cost;
 
       vector<int> path = (score1 < score2)? path1 : path2;
 
@@ -395,16 +407,30 @@ class TerrainCrossing {
 
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
+      vector<int> goodPath = path;
+
       double timeLimit = 8.0;
       double currentTime = getTime(g_startCycle);
-      double minCost = calcCost(bestPath);
+
+      Result result = calcCost(bestPath);
+      double minCost = result.cost;
+      double goodCost = minCost;
+
       fprintf(stderr,"minCost = %f\n", minCost);
+
       ll tryCount = 0;
       ll invalidCount = 0;
+
       int c1, c2;
       int psize = path.size();
 
+      double T = 10000.0;
+      double alpha = 0.999;
+      double penalty = 0.0;
+      double remainTime;
+
       while (currentTime < timeLimit) {
+        remainTime = timeLimit - currentTime;
         do {
           c1 = xor128() % psize;
           c2 = xor128() % psize;
@@ -431,31 +457,51 @@ class TerrainCrossing {
             break;
         }
 
-        double cost = calcCost(path);
+        Result result = calcCost(path, penalty);
+        double cost = result.cost;
 
-        if (cost == DBL_MAX) {
+        if (!result.valid) {
           invalidCount++;
         }
 
-        if (minCost > cost) {
+        if (minCost > cost && result.valid) {
           minCost = cost;
           bestPath = path;
+        }
+
+        if (goodCost > cost) {
+          goodCost = cost;
+          goodPath = path;
         } else {
           switch (type) {
             case 0:
               swapObject(path, c1, c2);
               break;
             default:
-              path = bestPath;
+              path = goodPath;
               break;
           }
         }
 
         currentTime = getTime(g_startCycle);
         tryCount++;
+        T *= alpha;
+
+        if (remainTime < 2.0 && penalty < 100) {
+          //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
+          penalty = 10000.0;
+          goodCost = DBL_MAX;
+        } else if (remainTime < 4.0 && penalty < 10) {
+          penalty = 30.0;
+          goodCost = DBL_MAX;
+        } else if (remainTime < 5.0 && penalty < 5) {
+          //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
+          penalty = 5.0;
+          goodCost = DBL_MAX;
+        }
       }
 
-      fprintf(stderr,"(%lld/%lld), tryCount = %lld\n", invalidCount, tryCount, tryCount);
+      fprintf(stderr,"(%lld/%lld), tryCount = %lld, minCost = %f, goodCost = %f\n", invalidCount, tryCount, tryCount, minCost, goodCost);
 
       return bestPath;
     }
@@ -885,24 +931,29 @@ class TerrainCrossing {
       return score;
     }
 
-    double calcCost(vector<int> &path) {
+    Result calcCost(vector<int> &path, double penalty = 0) {
       int psize = path.size();
       int itemCount = 0;
       double score = g_objectList[path[0]].leaveCost;
+      Result result;
 
       for (int i = 0; i < psize-1; i++) {
         int oid = path[i];
         Object *obj = getObject(oid);
 
         itemCount = (obj->isItem())? itemCount+1 : itemCount-1;
-        if (itemCount < 0 || itemCount > g_capacity) return DBL_MAX;
+        if (itemCount < 0 || itemCount > g_capacity) {
+          score += penalty;
+          result.valid = false;
+        }
 
         score += g_pathCost[path[i]][path[i+1]];
       }
 
       score += g_objectList[path[psize-1]].leaveCost;
+      result.cost = score;
 
-      return score;
+      return result;
     }
 
     bool isValidAnswer(vector<Location> &path) {
