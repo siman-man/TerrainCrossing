@@ -467,18 +467,11 @@ class TerrainCrossing {
       double alpha = 0.99999;
       double k = 10.0;
 
-      if (N >= 130) {
-        alpha = 0.0;
-      } else if (N >= 90) {
-        alpha = 0.999;
-      } else if (N >= 50) {
-        alpha = 0.9999;
-      }
-
       double T = temp;
       double penalty = 0.0;
       double remainTime;
 
+      int nc = 0;
 
       while (currentTime < timeLimit) {
         remainTime = timeLimit - currentTime;
@@ -524,10 +517,13 @@ class TerrainCrossing {
         if (goodCost > result.cost) {
           goodCost = result.cost;
           goodPath = path;
-        } else if (alpha > 0 && xor128()%100 < 100*exp(diffScore/(T*k))) {
+          nc = 0;
+        } else if (xor128()%10000 < 10000*exp(diffScore/(T*k))) {
           goodCost = result.cost;
           goodPath = path;
+          nc = 0;
         } else {
+          nc++;
           switch (type) {
             case 0:
               swapObject(path, c1, c2);
@@ -542,27 +538,19 @@ class TerrainCrossing {
         tryCount++;
         T *= alpha;
 
-        if (remainTime < 2.0 && penalty < 100) {
-          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
-          cerr.flush();
-          penalty = 10000.0;
+        if (nc > 30000) {
+          T = temp;
+          nc = 0;
+        }
+
+        if (tryCount % 2000 == 0) {
+          penalty = max(0.0, 200.0 - exp(remainTime/1.5));
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
-          T = temp;
-        } else if (remainTime < 4.0 && penalty < 10) {
+        }
+        if (tryCount % 500000 == 0) {
           fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
           cerr.flush();
-          penalty = 30.0;
-          result = calcCost(goodPath, penalty);
-          goodCost = result.cost;
-          T = temp;
-        } else if (remainTime < 6.0 && penalty < 5) {
-          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
-          cerr.flush();
-          penalty = 5.0;
-          result = calcCost(goodPath, penalty);
-          goodCost = result.cost;
-          T = temp;
         }
       }
 
