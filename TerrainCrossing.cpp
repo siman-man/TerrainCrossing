@@ -130,6 +130,8 @@ struct Node {
     this->yi = floor(y);
     this->xi = floor(x);
     this->beforeDirect = -1;
+    this->beforeY = y;
+    this->beforeX = x;
     this->length = 0;
   }
 
@@ -238,6 +240,7 @@ class TerrainCrossing {
     void calcMinPathCost(int oid) {
       Object *obj = getObject(oid);
       Node root(obj->nid, 0.0, obj->y, obj->x);
+      g_pathCost[oid][oid] = 0.0;
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
@@ -257,9 +260,20 @@ class TerrainCrossing {
           obj->leaveCost = min(obj->leaveCost, node.cost);
         }
 
-        int size = g_field[y][x].objIdList.size();
+        Cell cell = g_field[y][x];
+        int size = cell.objIdList.size();
         for (int i = 0; i < size; i++) {
-          g_pathCost[oid][g_field[y][x].objIdList[i]] = node.cost;
+          if (oid == cell.objIdList[i]) continue;
+          Object *o = getObject(g_field[y][x].objIdList[i]);
+
+          if (node.length == 0) {
+            double ncost = costSeg(Location(obj->y, obj->x), Location(o->y, o->x));
+            g_pathCost[oid][g_field[y][x].objIdList[i]] = ncost;
+          } else {
+            double bcost = costSeg(Location(node.beforeY, node.beforeX), Location(node.y, node.x));
+            double ncost = costSeg(Location(node.beforeY, node.beforeX), Location(o->y, o->x));
+            g_pathCost[oid][g_field[y][x].objIdList[i]] = node.cost + (ncost - bcost);
+          }
         }
 
         for (int i = 0; i < 4; i++) {
@@ -273,15 +287,17 @@ class TerrainCrossing {
           next.length = node.length + 1;
           next.yi = ny;
           next.xi = nx;
+          next.y = ny + 0.5;
+          next.x = nx + 0.5;
           next.beforeY = y;
           next.beforeX = x;
           next.cid = nid;
 
           double costB, costC;
           if (node.length == 0) {
-            costB = costSeg(Location(obj->y, obj->x), Location(ny+0.5, nx+0.5));
+            costB = costSeg(Location(obj->y, obj->x), Location(next.y, next.x));
           } else {
-            costB = costSeg(Location(y+0.5, x+0.5), Location(ny+0.5, nx+0.5));
+            costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           }
           costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
 
