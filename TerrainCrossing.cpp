@@ -304,7 +304,7 @@ class TerrainCrossing {
           if (node.length == 0) {
             next.cost = costB + costC;
           } else if ((node.beforeDirect % 2) != (i % 2)) {
-            next.cost = node.cost + 0.9*costB + costC;
+            next.cost = node.cost + costB + costC;
           } else {
             next.cost = node.cost + costB + costC;
           }
@@ -538,13 +538,13 @@ class TerrainCrossing {
         tryCount++;
         T *= alpha;
 
-        if (nc > 30000) {
+        if (T < 0.1 && nc > 30000) {
           T = temp;
           nc = 0;
         }
 
-        if (tryCount % 2000 == 0) {
-          penalty = max(0.0, 200.0 - exp(remainTime/1.5));
+        if (tryCount % 20000 == 0) {
+          penalty = max(0.0, 30*(200.0 - exp(remainTime/3)));
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
         }
