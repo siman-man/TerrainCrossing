@@ -1041,10 +1041,6 @@ class TerrainCrossing {
       for (int i = 0; i < psize; i++) {
         Location l = path[i];
 
-        if (i == 364) {
-          fprintf(stderr,"y = %f, x = %f\n", l.y, l.x);
-        }
-
         if (isNearInnerBorder(l)) return false;
       }
 
@@ -1126,6 +1122,8 @@ int main() {
   cin >> capacity;
   vector<double> ret = tc.getPath(map, locations, capacity);
   cout << ret.size() << endl;
-  for (int i = 0; i < ret.size(); ++i) cout << ret[i] << endl;
+  for (int i = 0; i < ret.size(); ++i) {
+    printf("%10.6f\n", ret[i]);
+  }
   cout.flush();
 }
