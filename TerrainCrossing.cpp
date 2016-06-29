@@ -323,7 +323,7 @@ class TerrainCrossing {
 
       vector<int> path1;
 
-      if (N <= 50) {
+      if (N <= 30) {
         path1 = createFirstPathBeam();
       } else {
         path1 = createFirstPathNN();
@@ -463,11 +463,22 @@ class TerrainCrossing {
 
       int c1, c2;
       int psize = path.size();
+      double temp = 10000;
+      double alpha = 0.99999;
+      double k = 10.0;
 
-      double T = 10000.0;
-      double alpha = 0.999;
+      if (N >= 130) {
+        alpha = 0.0;
+      } else if (N >= 90) {
+        alpha = 0.999;
+      } else if (N >= 50) {
+        alpha = 0.9999;
+      }
+
+      double T = temp;
       double penalty = 0.0;
       double remainTime;
+
 
       while (currentTime < timeLimit) {
         remainTime = timeLimit - currentTime;
@@ -508,7 +519,12 @@ class TerrainCrossing {
           bestPath = path;
         }
 
+        double diffScore = goodCost - result.cost;
+
         if (goodCost > result.cost) {
+          goodCost = result.cost;
+          goodPath = path;
+        } else if (alpha > 0 && xor128()%100 < 100*exp(diffScore/(T*k))) {
           goodCost = result.cost;
           goodPath = path;
         } else {
@@ -527,19 +543,26 @@ class TerrainCrossing {
         T *= alpha;
 
         if (remainTime < 2.0 && penalty < 100) {
-          //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
+          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+          cerr.flush();
           penalty = 10000.0;
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
+          T = temp;
         } else if (remainTime < 4.0 && penalty < 10) {
+          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+          cerr.flush();
           penalty = 30.0;
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
-        } else if (remainTime < 5.0 && penalty < 5) {
-          //fprintf(stderr,"goodCost = %f, minCost = %f\n", goodCost, minCost);
+          T = temp;
+        } else if (remainTime < 6.0 && penalty < 5) {
+          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+          cerr.flush();
           penalty = 5.0;
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
+          T = temp;
         }
       }
 
@@ -609,8 +632,8 @@ class TerrainCrossing {
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
-        int y = node.cid / S;
-        int x = node.cid % S;
+        int y = node.yi;
+        int x = node.xi;
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
@@ -639,13 +662,17 @@ class TerrainCrossing {
           next.cid = nid;
           next.beforeDirect = i;
           next.length = node.length + 1;
+          next.yi = ny;
+          next.xi = nx;
+          next.y = ny + 0.5;
+          next.x = nx + 0.5;
 
           double costB, costC;
 
           if (node.length == 0) {
-            costB = costSeg(Location(fromObj->y, fromObj->x), Location(ny+0.5, nx+0.5));
+            costB = costSeg(Location(fromObj->y, fromObj->x), Location(next.y, next.x));
           } else {
-            costB = costSeg(Location(y+0.5, x+0.5), Location(ny+0.5, nx+0.5));
+            costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           }
           costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
 
