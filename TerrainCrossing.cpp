@@ -21,8 +21,8 @@ typedef long long ll;
 const int MAX_S = 50;
 const int MAX_N = 250;
 const int UNKNOWN = -1;
-const int ITEM = 0;
-const int TARGET = 1;
+const int ITEM = 1;
+const int TARGET = -1;
 
 const ll CYCLE_PER_SEC = 2400000000;
 double MAX_TIME = 10.0;
@@ -501,7 +501,7 @@ class TerrainCrossing {
 
         result = calcCost(path, penalty);
 
-        if (minCost > result.cost && result.valid) {
+        if (result.valid && minCost > result.cost) {
           minCost = result.cost;
           bestPath = path;
         }
@@ -532,7 +532,7 @@ class TerrainCrossing {
         tryCount++;
         T *= alpha;
 
-        if (T < 0.1 && nc > 30000) {
+        if (nc > 30000 && T < 0.1) {
           T = temp;
           nc = 0;
         }
@@ -541,10 +541,11 @@ class TerrainCrossing {
           penalty = max(0.0, 30*(200.0 - exp(remainTime/3)));
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
-        }
-        if (tryCount % 500000 == 0) {
-          fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
-          cerr.flush();
+
+          if (tryCount % 500000 == 0) {
+            fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+            cerr.flush();
+          }
         }
       }
 
@@ -701,11 +702,7 @@ class TerrainCrossing {
             } else {
               cand.cost = node.cost + g_pathCost[node.cid][oid];
             }
-            if (obj->isItem()) {
-              cand.itemCount = itemCount+1;
-            } else {
-              cand.itemCount = itemCount-1;
-            }
+            cand.itemCount = node.itemCount + obj->type;
 
             pque.push(cand);
           }
@@ -995,24 +992,23 @@ class TerrainCrossing {
     Result calcCost(vector<int> &path, double penalty = 0) {
       int psize = path.size();
       int itemCount = 0;
-      double score = g_objectList[path[0]].leaveCost;
       Result result;
+      result.cost = g_objectList[path[0]].leaveCost;
 
       for (int i = 0; i < psize-1; i++) {
         int oid = path[i];
         Object *obj = getObject(oid);
 
-        itemCount = (obj->isItem())? itemCount+1 : itemCount-1;
+        itemCount += obj->type;
         if (itemCount < 0 || itemCount > g_capacity) {
-          score += penalty;
+          result.cost += penalty;
           result.valid = false;
         }
 
-        score += g_pathCost[path[i]][path[i+1]];
+        result.cost += g_pathCost[path[i]][path[i+1]];
       }
 
-      score += g_objectList[path[psize-1]].leaveCost;
-      result.cost = score;
+      result.cost += g_objectList[path[psize-1]].leaveCost;
 
       return result;
     }
