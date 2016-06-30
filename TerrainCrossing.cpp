@@ -303,8 +303,6 @@ class TerrainCrossing {
 
           if (node.length == 0) {
             next.cost = costB + costC;
-          } else if ((node.beforeDirect % 2) != (i % 2)) {
-            next.cost = node.cost + costB + costC;
           } else {
             next.cost = node.cost + costB + costC;
           }
