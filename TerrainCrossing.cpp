@@ -308,7 +308,6 @@ class TerrainCrossing {
           } else {
             next.cost = node.cost + costB + costC;
           }
-          //next.ids.push_back(nid);
           pque.push(next);
         }
       }
@@ -459,7 +458,6 @@ class TerrainCrossing {
       fprintf(stderr,"minCost = %f\n", minCost);
 
       ll tryCount = 0;
-      ll invalidCount = 0;
 
       int c1, c2;
       int psize = path.size();
@@ -502,10 +500,6 @@ class TerrainCrossing {
         }
 
         result = calcCost(path, penalty);
-
-        if (!result.valid) {
-          invalidCount++;
-        }
 
         if (minCost > result.cost && result.valid) {
           minCost = result.cost;
@@ -554,7 +548,7 @@ class TerrainCrossing {
         }
       }
 
-      fprintf(stderr,"(%lld/%lld), tryCount = %lld, minCost = %f, goodCost = %f\n", invalidCount, tryCount, tryCount, minCost, goodCost);
+      fprintf(stderr,"tryCount = %lld, minCost = %f, goodCost = %f\n", tryCount, minCost, goodCost);
 
       return bestPath;
     }
