@@ -411,9 +411,11 @@ class TerrainCrossing {
       double timeLimit = 10.0;
       double currentTime = getTime(g_startCycle);
       ll tryCount = 0;
+      ll i = 0;
 
       while (currentTime < timeLimit) {
-        int index = xor128() % psize;
+        i++;
+        int index = i % psize;
         Location l = path[index];
         if (l.locked) continue;
         Location temp = l;
@@ -506,6 +508,7 @@ class TerrainCrossing {
         if (result.valid && minCost > result.cost) {
           minCost = result.cost;
           bestPath = path;
+          nc = 0;
         }
 
         double diffScore = goodCost - result.cost;
@@ -517,7 +520,7 @@ class TerrainCrossing {
         } else if (xor128()%10000 < 10000*exp(diffScore/(T*k))) {
           goodCost = result.cost;
           goodPath = path;
-          nc = 0;
+          nc++;
         } else {
           nc++;
           switch (type) {
@@ -534,13 +537,14 @@ class TerrainCrossing {
         tryCount++;
         T *= alpha;
 
-        if (nc > 30000 && T < 0.1) {
-          T = temp;
+        if (nc > 400000 && T < 0.1) {
+          T = 1.0;
           nc = 0;
         }
 
         if (tryCount % 20000 == 0) {
-          penalty = max(0.0, 30*(200.0 - exp(remainTime/3)));
+          penalty = updatePenalty(remainTime);
+          k = updateK(remainTime);
           result = calcCost(goodPath, penalty);
           goodCost = result.cost;
 
@@ -554,6 +558,30 @@ class TerrainCrossing {
       fprintf(stderr,"tryCount = %lld, minCost = %f, goodCost = %f\n", tryCount, minCost, goodCost);
 
       return bestPath;
+    }
+
+    double updatePenalty(double remainTime) {
+      if (remainTime < 2.0) {
+        return 500.0;
+      } else if (remainTime < 4.0) {
+        return 50.0;
+      } else if (remainTime < 6.0) {
+        return 5.0;
+      } else if (remainTime < 8.0) {
+        return 1.0;
+      } else {
+        return 0.0;
+      }
+    }
+
+    double updateK(double remainTime) {
+      if (remainTime < 2.0) {
+        return 4.0;
+      } else if (remainTime < 4.0) {
+        return 2.0;
+      } else {
+        return 0.5;
+      }
     }
 
     void swapObject(vector<int> &path, int c1, int c2) {
@@ -1005,6 +1033,7 @@ class TerrainCrossing {
         if (itemCount < 0 || itemCount > g_capacity) {
           result.cost += penalty;
           result.valid = false;
+          return Result(DBL_MAX, false);
         }
 
         result.cost += g_pathCost[path[i]][path[i+1]];
