@@ -394,9 +394,13 @@ class TerrainCrossing {
       result[result.size()-1].locked = true;
 
       assert(result[0].locked);
+      double bscore = calcCostDetail(result);
       fixPath(result);
+      double ascore = calcCostDetail(result);
       assert(isValidAnswer(result));
       ret = path2answer(result);
+
+      fprintf(stderr,"Before = %f, After = %f\n", bscore, ascore);
 
       return ret;
     }
