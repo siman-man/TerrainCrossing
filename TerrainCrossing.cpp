@@ -452,7 +452,7 @@ class TerrainCrossing {
       vector<int> bestPath = path;
       vector<int> goodPath = path;
 
-      double timeLimit = 8.0;
+      double timeLimit = 9.0;
       double currentTime = getTime(g_startCycle);
 
       Result result = calcCost(bestPath);
@@ -467,10 +467,9 @@ class TerrainCrossing {
       int psize = path.size();
       double temp = 10000;
       double alpha = 0.99999;
-      double k = 10.0;
+      double k = updateK(minCost);
 
       double T = temp;
-      double penalty = 0.0;
       double remainTime;
 
       int nc = 0;
@@ -503,7 +502,7 @@ class TerrainCrossing {
             break;
         }
 
-        result = calcCost(path, penalty);
+        result = calcCost(path);
 
         if (result.valid && minCost > result.cost) {
           minCost = result.cost;
@@ -538,18 +537,15 @@ class TerrainCrossing {
         T *= alpha;
 
         if (nc > 400000 && T < 0.1) {
-          T = 1.0;
+          T = 10.0;
           nc = 0;
         }
 
         if (tryCount % 20000 == 0) {
-          penalty = updatePenalty(remainTime);
-          k = updateK(remainTime);
-          result = calcCost(goodPath, penalty);
-          goodCost = result.cost;
+          k = updateK(minCost);
 
           if (tryCount % 500000 == 0) {
-            fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+            //fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
             cerr.flush();
           }
         }
@@ -560,27 +556,13 @@ class TerrainCrossing {
       return bestPath;
     }
 
-    double updatePenalty(double remainTime) {
-      if (remainTime < 2.0) {
-        return 500.0;
-      } else if (remainTime < 4.0) {
-        return 50.0;
-      } else if (remainTime < 6.0) {
-        return 5.0;
-      } else if (remainTime < 8.0) {
-        return 1.0;
+    double updateK(double minCost) {
+      if (minCost > 1000) {
+        return 0.8;
+      } else if (minCost > 500) {
+        return 0.7;
       } else {
-        return 0.0;
-      }
-    }
-
-    double updateK(double remainTime) {
-      if (remainTime < 2.0) {
-        return 4.0;
-      } else if (remainTime < 4.0) {
-        return 2.0;
-      } else {
-        return 0.5;
+        return 0.65;
       }
     }
 
@@ -1019,7 +1001,7 @@ class TerrainCrossing {
       return score;
     }
 
-    Result calcCost(vector<int> &path, double penalty = 0) {
+    Result calcCost(vector<int> &path) {
       int psize = path.size();
       int itemCount = 0;
       Result result;
@@ -1031,7 +1013,6 @@ class TerrainCrossing {
 
         itemCount += obj->type;
         if (itemCount < 0 || itemCount > g_capacity) {
-          result.cost += penalty;
           result.valid = false;
           return Result(DBL_MAX, false);
         }
