@@ -1064,10 +1064,6 @@ class TerrainCrossing {
       return &g_objectList[N+id];
     }
 
-    inline bool isNearPoint(Location c1, Location c2) {
-      return calcDist(c1.y, c1.x, c2.y, c2.x) < EPS;
-    }
-
     bool isNearInnerBorder(Location l) {
       double inCellY = l.y - l.yi;
       double inCellX = l.x - l.xi;
