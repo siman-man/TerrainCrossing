@@ -26,6 +26,7 @@ const int TARGET = -1;
 
 const ll CYCLE_PER_SEC = 2400000000;
 double MAX_TIME = 10.0;
+bool g_debug = false;
 
 const int DY[4] = {-1, 0, 0, 1};
 const int DX[4] = {0, -1, 1, 0};
@@ -282,18 +283,8 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB;
-          if (node.length == 0) {
-            costB = costSeg(Location(obj->y, obj->x), Location(next.y, next.x));
-          } else {
-            costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          }
-
-          if (node.length == 0) {
-            next.cost = costB;
-          } else {
-            next.cost += costB;
-          }
+          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
+          next.cost += costB;
           pque.push(next);
         }
       }
@@ -394,7 +385,7 @@ class TerrainCrossing {
     void fixPath(vector<Location> &path) {
       int psize = path.size();
 
-      double timeLimit = 10.0;
+      double timeLimit = MAX_TIME;
       double currentTime = getTime(g_startCycle);
       ll tryCount = 0;
       ll i = 0;
@@ -438,7 +429,7 @@ class TerrainCrossing {
       vector<int> bestPath = path;
       vector<int> goodPath = path;
 
-      double timeLimit = 9.0;
+      double timeLimit = MAX_TIME-1.0;
       double currentTime = getTime(g_startCycle);
 
       double minCost = calcCost(bestPath);
@@ -451,7 +442,7 @@ class TerrainCrossing {
       int c1, c2;
       int psize = path.size();
       double temp = 10000;
-      double alpha = 0.99999;
+      double alpha = 0.99998;
       double k = updateK(minCost);
 
       double T = temp;
@@ -468,7 +459,7 @@ class TerrainCrossing {
 
         int type = xor128()%4;
 
-        if (type == 3 && (c1 > psize-3 || c2 > psize-3)) {
+        if (type == 3 && (c1 > psize-4 || c2 > psize-3)) {
           continue;
         }
 
@@ -529,7 +520,7 @@ class TerrainCrossing {
         if (tryCount % 20000 == 0) {
           k = updateK(minCost);
 
-          if (tryCount % 500000 == 0) {
+          if (g_debug && tryCount % 500000 == 0) {
             fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
             cerr.flush();
           }
@@ -647,14 +638,7 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB;
-
-          if (node.length == 0) {
-            costB = costSeg(Location(fromObj->y, fromObj->x), Location(next.y, next.x));
-          } else {
-            costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          }
-
+          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           next.cost += costB;
           next.ids.push_back(nid);
           pque.push(next);
@@ -942,7 +926,15 @@ class TerrainCrossing {
           int nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
-          next.cost += g_fieldCost[ny][nx] + pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          next.beforeDirect = i;
+          next.length = node.length + 1;
+          next.yi = ny;
+          next.xi = nx;
+          next.y = ny + 0.5;
+          next.x = nx + 0.5;
+
+          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
+          next.cost += costB;
           next.ids.push_back(nid);
           pque.push(next);
         }
@@ -1082,6 +1074,7 @@ class TerrainCrossing {
 // -------8<------- end of solution submitted to the website -------8<-------
 template<class T> void getVector(vector<T>& v) { for (int i = 0; i < v.size(); ++i) cin >> v[i];}
 int main() {
+  g_debug = true;
   TerrainCrossing tc; int L, M, capacity;
   cin >> M;
   vector<string> map(M); getVector(map);
