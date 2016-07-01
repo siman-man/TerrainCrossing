@@ -80,16 +80,6 @@ struct Location {
   }
 };
 
-struct Result {
-  double cost;
-  bool valid;
-
-  Result(double cost = DBL_MAX, bool valid = true) {
-    this->cost = cost;
-    this->valid = valid;
-  }
-};
-
 struct BeamNode {
   double cost;
   int cid;
@@ -333,10 +323,8 @@ class TerrainCrossing {
       vector<int> path2 = createFirstPathFI();
       assert(isValidPath(path2));
 
-      Result result1 = calcCost(path1);
-      Result result2 = calcCost(path2);
-      double score1 = result1.cost;
-      double score2 = result2.cost;
+      double score1 = calcCost(path1);
+      double score2 = calcCost(path2);
 
       vector<int> path = (score1 < score2)? path1 : path2;
 
@@ -454,8 +442,7 @@ class TerrainCrossing {
       double timeLimit = 9.0;
       double currentTime = getTime(g_startCycle);
 
-      Result result = calcCost(bestPath);
-      double minCost = result.cost;
+      double minCost = calcCost(bestPath);
       double goodCost = minCost;
 
       fprintf(stderr,"minCost = %f\n", minCost);
@@ -501,22 +488,22 @@ class TerrainCrossing {
             break;
         }
 
-        result = calcCost(path);
+        double cost = calcCost(path);
 
-        if (result.valid && minCost > result.cost) {
-          minCost = result.cost;
+        if (cost < DBL_MAX && minCost > cost) {
+          minCost = cost;
           bestPath = path;
           nc = 0;
         }
 
-        double diffScore = goodCost - result.cost;
+        double diffScore = goodCost - cost;
 
-        if (goodCost > result.cost) {
-          goodCost = result.cost;
+        if (goodCost > cost) {
+          goodCost = cost;
           goodPath = path;
           nc = 0;
         } else if (xor128()%10000 < 10000*exp(diffScore/(T*k))) {
-          goodCost = result.cost;
+          goodCost = cost;
           goodPath = path;
           nc++;
         } else {
@@ -1000,11 +987,10 @@ class TerrainCrossing {
       return score;
     }
 
-    Result calcCost(vector<int> &path) {
+    double calcCost(vector<int> &path) {
       int psize = path.size();
       int itemCount = 0;
-      Result result;
-      result.cost = g_objectList[path[0]].leaveCost;
+      double cost = g_objectList[path[0]].leaveCost;
 
       for (int i = 0; i < psize-1; i++) {
         int oid = path[i];
@@ -1012,16 +998,15 @@ class TerrainCrossing {
 
         itemCount += obj->type;
         if (itemCount < 0 || itemCount > g_capacity) {
-          result.valid = false;
-          return Result(DBL_MAX, false);
+          return DBL_MAX;
         }
 
-        result.cost += g_pathCost[path[i]][path[i+1]];
+        cost += g_pathCost[path[i]][path[i+1]];
       }
 
-      result.cost += g_objectList[path[psize-1]].leaveCost;
+      cost += g_objectList[path[psize-1]].leaveCost;
 
-      return result;
+      return cost;
     }
 
     bool isValidAnswer(vector<Location> &path) {
