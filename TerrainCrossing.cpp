@@ -282,18 +282,17 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB, costC;
+          double costB;
           if (node.length == 0) {
             costB = costSeg(Location(obj->y, obj->x), Location(next.y, next.x));
           } else {
             costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           }
-          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2.0);
 
           if (node.length == 0) {
-            next.cost = costB + costC;
+            next.cost = costB;
           } else {
-            next.cost += costB + costC;
+            next.cost += costB;
           }
           pque.push(next);
         }
@@ -648,16 +647,15 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB, costC;
+          double costB;
 
           if (node.length == 0) {
             costB = costSeg(Location(fromObj->y, fromObj->x), Location(next.y, next.x));
           } else {
             costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           }
-          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
 
-          next.cost += costB + costC;
+          next.cost += costB;
           next.ids.push_back(nid);
           pque.push(next);
         }
