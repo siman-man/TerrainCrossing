@@ -116,8 +116,8 @@ struct Node {
   int yi;
   int xi;
   double cost;
-  int beforeY;
-  int beforeX;
+  double beforeY;
+  double beforeX;
   int beforeDirect;
   int length;
   vector<int> ids;
@@ -245,7 +245,7 @@ class TerrainCrossing {
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
 
-      map<int, bool> checkList;
+      vector<bool> checkList(V);
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
@@ -257,22 +257,23 @@ class TerrainCrossing {
         checkList[node.cid] = true;
 
         if (y == 0 || y == S-1 || x == 0 || x == S-1) {
-          obj->leaveCost = min(obj->leaveCost, node.cost);
+          obj->leaveCost = min(obj->leaveCost, node.cost + 0.5*g_fieldCost[y][x]);
         }
 
         Cell cell = g_field[y][x];
         int size = cell.objIdList.size();
         for (int i = 0; i < size; i++) {
+          int eid = cell.objIdList[i];
           if (oid == cell.objIdList[i]) continue;
-          Object *o = getObject(g_field[y][x].objIdList[i]);
+          Object *other = getObject(eid);
 
           if (node.length == 0) {
-            double ncost = costSeg(Location(obj->y, obj->x), Location(o->y, o->x));
-            g_pathCost[oid][g_field[y][x].objIdList[i]] = ncost;
+            double ncost = costSeg(Location(obj->y, obj->x), Location(other->y, other->x));
+            g_pathCost[oid][eid] = ncost;
           } else {
             double bcost = costSeg(Location(node.beforeY, node.beforeX), Location(node.y, node.x));
-            double ncost = costSeg(Location(node.beforeY, node.beforeX), Location(o->y, o->x));
-            g_pathCost[oid][g_field[y][x].objIdList[i]] = node.cost + (ncost - bcost);
+            double ncost = costSeg(Location(node.beforeY, node.beforeX), Location(other->y, other->x));
+            g_pathCost[oid][eid] = node.cost + (ncost - bcost);
           }
         }
 
@@ -283,15 +284,13 @@ class TerrainCrossing {
 
           int nid = ny*S + nx;
           Node next = node.dup();
+          next.cid = nid;
           next.beforeDirect = i;
           next.length = node.length + 1;
           next.yi = ny;
           next.xi = nx;
           next.y = ny + 0.5;
           next.x = nx + 0.5;
-          next.beforeY = y;
-          next.beforeX = x;
-          next.cid = nid;
 
           double costB, costC;
           if (node.length == 0) {
@@ -299,12 +298,12 @@ class TerrainCrossing {
           } else {
             costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           }
-          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2);
+          costC = pow(g_fieldCost[y][x] - g_fieldCost[ny][nx], 2.0);
 
           if (node.length == 0) {
             next.cost = costB + costC;
           } else {
-            next.cost = node.cost + costB + costC;
+            next.cost += costB + costC;
           }
           pque.push(next);
         }
@@ -545,7 +544,7 @@ class TerrainCrossing {
           k = updateK(minCost);
 
           if (tryCount % 500000 == 0) {
-            //fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+            fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
             cerr.flush();
           }
         }
@@ -623,7 +622,7 @@ class TerrainCrossing {
 
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       pque.push(root);
-      map<int, bool> checkList;
+      vector<bool> checkList(V);
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
@@ -736,7 +735,7 @@ class TerrainCrossing {
 
     vector<int> createFirstPathNN() {
       vector<int> ret;
-      map<int, bool> checkList;
+      vector<bool> checkList(V);
 
       ret.push_back(g_objectList[0].id);
       checkList[g_objectList[0].id] = true;
@@ -770,7 +769,7 @@ class TerrainCrossing {
       vector<int> ret;
       int itemCount[2*N];
       memset(itemCount, 0, sizeof(itemCount));
-      map<int, bool> checkList;
+      vector<bool> checkList(V);
 
       double minDist = DBL_MAX;
       int minId = -1;
@@ -918,7 +917,7 @@ class TerrainCrossing {
       priority_queue<Node, vector<Node>, greater<Node> > pque;
       Node root(obj->nid, 0.0, obj->y, obj->x);
       pque.push(root);
-      map<int, bool> checkList;
+      vector<bool> checkList(V);
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
