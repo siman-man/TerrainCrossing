@@ -76,6 +76,11 @@ struct Location {
     return sqrt((other.y-y)*(other.y-y)+(other.x-x)*(other.x-x));
   }
 
+  void update() {
+    this->yi = floor(y);
+    this->xi = floor(x);
+  }
+
   int manhattan(Location other) {
     return abs(other.yi - yi) + abs(other.xi - xi);
   }
@@ -284,7 +289,8 @@ class TerrainCrossing {
           next.x = nx + 0.5;
 
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          next.cost += costB;
+          double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
+          next.cost += costB + costC;
           pque.push(next);
         }
       }
@@ -382,6 +388,53 @@ class TerrainCrossing {
       return ret;
     }
 
+    Location getLeaveLocation(double y, double x) {
+      int yi = floor(y);
+      int xi = floor(x);
+      double minCost = DBL_MAX;
+      Location best;
+      Location base(y, x);
+
+      if (yi == 0) {
+        Location l(0.0001, x);
+        double cost = base.dist(l);
+
+        if (minCost > cost) {
+          minCost = cost;
+          best = l;
+        }
+      }
+      if (xi == 0) {
+        Location l(y, 0.0001);
+        double cost = base.dist(l);
+
+        if (minCost > cost) {
+          minCost = cost;
+          best = l;
+        }
+      }
+      if (yi == S-1) {
+        Location l(S-EPS/2, x);
+        double cost = base.dist(l);
+
+        if (minCost > cost) {
+          minCost = cost;
+          best = l;
+        }
+      }
+      if (xi == S-1) {
+        Location l(y, S-EPS/2);
+        double cost = base.dist(l);
+
+        if (minCost > cost) {
+          minCost = cost;
+          best = l;
+        }
+      }
+
+      return best;
+    }
+
     void fixPath(vector<Location> &path) {
       int psize = path.size();
 
@@ -395,6 +448,8 @@ class TerrainCrossing {
         int index = i % psize;
         Location l = path[index];
         if (l.locked) continue;
+        Location bl = path[index-1];
+        Location al = path[index+1];
         Location temp = l;
         double s1 = costSeg(path[index-1], path[index]) + costSeg(path[index], path[index+1]);
 
@@ -402,14 +457,15 @@ class TerrainCrossing {
         int d2 = xor128()%40;
         l.y += 0.0025 * d1 - 0.05;
         l.x += 0.0025 * d2 - 0.05;
-        int nid = floor(l.y)*S + floor(l.x);
 
+        l.update();
+        if (l.y < 0 || l.y >= S || l.x < 0 || l.x >= S) continue;
         if (l.y - l.yi < EPS) continue;
         if (l.x - l.xi < EPS) continue;
         if ((l.yi+1) - l.y < EPS) continue;
         if ((l.xi+1) - l.x < EPS) continue;
+        if (bl.manhattan(l) >= 2 || al.manhattan(l) >= 2) continue;
 
-        if (nid != l.nid) continue;
         path[index] = l;
 
         double s2 = costSeg(path[index-1], path[index]) + costSeg(path[index], path[index+1]);
@@ -442,7 +498,7 @@ class TerrainCrossing {
       int c1, c2;
       int psize = path.size();
       double temp = 10000;
-      double alpha = 0.99998;
+      double alpha = 0.99999;
       double k = updateK(minCost);
 
       double T = temp;
@@ -459,7 +515,7 @@ class TerrainCrossing {
 
         int type = xor128()%4;
 
-        if (type == 3 && (c1 > psize-4 || c2 > psize-3)) {
+        if (type == 3 && (c1 > psize-3 || c2 > psize-3)) {
           continue;
         }
 
@@ -639,7 +695,8 @@ class TerrainCrossing {
           next.x = nx + 0.5;
 
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          next.cost += costB;
+          double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
+          next.cost += costB + costC;
           next.ids.push_back(nid);
           pque.push(next);
         }
@@ -890,30 +947,22 @@ class TerrainCrossing {
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
-        int y = node.cid / S;
-        int x = node.cid % S;
+        int y = node.yi;
+        int x = node.xi;
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
 
         if (isBorder(y, x)) {
           int isize = node.ids.size();
-          for (int i = 0; i < isize; i++) {
+          for (int i = 0; i < isize-1; i++) {
             int id = node.ids[i];
             double cy = id / S + 0.5;
             double cx = id % S + 0.5;
             path.push_back(Location(cy, cx));
           }
 
-          if (y == 0) { 
-            path.push_back(Location(0.0001, x+0.5));
-          } else if (x == 0) {
-            path.push_back(Location(y+0.5, 0.0001));
-          } else if (y == S-1) {
-            path.push_back(Location(S-EPS/2, x+0.5));
-          } else {
-            path.push_back(Location(y+0.5, S-EPS/2));
-          }
+          path.push_back(getLeaveLocation(node.y, node.x));
 
           break;
         }
@@ -934,7 +983,8 @@ class TerrainCrossing {
           next.x = nx + 0.5;
 
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          next.cost += costB;
+          double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
+          next.cost += costB + costC;
           next.ids.push_back(nid);
           pque.push(next);
         }
