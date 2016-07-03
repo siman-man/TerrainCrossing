@@ -306,17 +306,17 @@ class TerrainCrossing {
 
       fprintf(stderr,"start =>\n");
 
-      vector<int> path1 = createFirstPathNN();
+      vector<short> path1 = createFirstPathNN();
 
       cerr.flush();
       assert(isValidPath(path1));
-      vector<int> path2 = createFirstPathFI();
+      vector<short> path2 = createFirstPathFI();
       assert(isValidPath(path2));
 
       double score1 = calcCost(path1);
       double score2 = calcCost(path2);
 
-      vector<int> path = (score1 < score2)? path1 : path2;
+      vector<short> path = (score1 < score2)? path1 : path2;
 
       double currentTime = getTime(g_startCycle);
       fprintf(stderr,"current time = %f\n", currentTime);
@@ -478,9 +478,9 @@ class TerrainCrossing {
       fprintf(stderr,"tryCount fix = %lld\n", tryCount);
     }
 
-    vector<int> cleanPath(vector<int> path) {
-      vector<int> bestPath = path;
-      vector<int> goodPath = path;
+    vector<short> cleanPath(vector<short> path) {
+      vector<short> bestPath = path;
+      vector<short> goodPath = path;
       updateHistory(goodPath);
 
       double timeLimit = MAX_TIME-1.0;
@@ -624,33 +624,33 @@ class TerrainCrossing {
       }
     }
 
-    void swapObject(vector<int> &path, int c1, int c2) {
-      int temp = path[c1];
+    void swapObject(vector<short> &path, int c1, int c2) {
+      short temp = path[c1];
       path[c1] = path[c2];
       path[c2] = temp;
     }
 
-    void insertObject(vector<int> &path, int c1, int c2) {
-      int temp = path[c1];
+    void insertObject(vector<short> &path, int c1, int c2) {
+      short temp = path[c1];
       path.erase(path.begin()+c1);
       path.insert(path.begin()+c2, temp);
     }
 
-    void insertObject2(vector<int> &path, int c1, int c2) {
-      int temp = path[c1];
-      int temp2 = path[c1+1];
+    void insertObject2(vector<short> &path, int c1, int c2) {
+      short temp = path[c1];
+      short temp2 = path[c1+1];
       path.erase(path.begin()+c1);
       path.erase(path.begin()+c1);
       path.insert(path.begin()+c2, temp);
       path.insert(path.begin()+c2, temp2);
     }
 
-    void crossObject(vector<int> &path, int c1, int c2) {
+    void crossObject(vector<short> &path, int c1, int c2) {
       int i = min(c1, c2);
       int j = max(c1, c2);
 
       while (i < j) {
-        int temp = path[i];
+        short temp = path[i];
         path[i] = path[j];
         path[j] = temp;
         i++;
@@ -736,17 +736,17 @@ class TerrainCrossing {
       return path;
     }
 
-    vector<int> createFirstPathNN() {
-      vector<int> ret;
+    vector<short> createFirstPathNN() {
+      vector<short> ret;
       vector<bool> checkList(V);
 
       ret.push_back(g_objectList[0].id);
       checkList[g_objectList[0].id] = true;
 
       for (int i = 0; i < 2*N-1; i++) {
-        int from = ret[i];
+        short from = ret[i];
         double minCost = DBL_MAX;
-        int minId = -1;
+        short minId = -1;
 
         for (int j = 0; j < N; j++) {
           Object *obj = (i % 2 == 0)? getTarget(j) : getItem(j);
@@ -768,8 +768,8 @@ class TerrainCrossing {
       return ret;
     }
 
-    vector<int> createFirstPathFI() {
-      vector<int> ret;
+    vector<short> createFirstPathFI() {
+      vector<short> ret;
       int itemCount[2*N];
       memset(itemCount, 0, sizeof(itemCount));
       vector<bool> checkList(V);
@@ -837,7 +837,7 @@ class TerrainCrossing {
           int rsize = ret.size();
           for (int k = 0; k < rsize; k++) {
             if (itemCount[k] == 0) continue;
-            vector<int> temp = ret;
+            vector<short> temp = ret;
             temp.insert(temp.begin()+(k+1), maxId);
             if (!isValidPath(temp)) continue;
             int o1 = ret[k];
@@ -1008,7 +1008,7 @@ class TerrainCrossing {
       return score;
     }
 
-    double calcCost(const vector<int> &path, double fc = 0.0, int fic = 0, int offset = 0) {
+    double calcCost(const vector<short> &path, double fc = 0.0, int fic = 0, int offset = 0) {
       int psize = 2*N;
       int itemCount = fic;
       double cost = (fc > 0.0)? fc : g_leaveCost[path[0]];
@@ -1043,7 +1043,7 @@ class TerrainCrossing {
       }
     }
 
-    void updateHistory(const vector<int> &path) {
+    void updateHistory(const vector<short> &path) {
       int psize = 2*N;
       int itemCount = 0;
       double cost = g_leaveCost[path[0]];
@@ -1076,7 +1076,7 @@ class TerrainCrossing {
       return true;
     }
 
-    bool isValidPath(vector<int> &path) {
+    bool isValidPath(vector<short> &path) {
       int psize = path.size();
       int cnt = 0;
       ///fprintf(stderr,"psize = %d\n", psize);
