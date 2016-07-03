@@ -25,7 +25,7 @@ const int ITEM = 1;
 const int TARGET = -1;
 
 const ll CYCLE_PER_SEC = 2400000000;
-double MAX_TIME = 10.0;
+double MAX_TIME = 10.2;
 bool g_debug = false;
 
 const int DY[4] = {-1, 0, 0, 1};
@@ -513,7 +513,7 @@ class TerrainCrossing {
           c2 = xor128() % psize;
         } while (c1 == c2);
 
-        int type = xor128()%4;
+        int type = xor128()&3;
 
         if (type == 3 && (c1 > psize-3 || c2 > psize-3)) {
           continue;
