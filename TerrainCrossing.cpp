@@ -98,7 +98,6 @@ struct Node {
   int beforeDirect;
   int length;
   int step[3];
-  Location lh[4];
   int fc[3];
   vector<int> ids;
   bool update;
@@ -120,10 +119,6 @@ struct Node {
     Node node(cid, cost, y, x);
     node.ids = ids;
     node.beforeDirect = beforeDirect;
-
-    node.lh[3] = lh[2];
-    node.lh[2] = lh[1];
-    node.lh[1] = lh[0];
 
     node.step[2] = step[1];
     node.step[1] = step[0];
@@ -295,7 +290,6 @@ class TerrainCrossing {
           double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
           next.cost += costB + costC;
 
-          next.lh[0] = Location(ny, nx);
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
@@ -588,11 +582,6 @@ class TerrainCrossing {
         T *= alpha;
         T = max(t, T);
 
-        if (nc > 400000 && T < 0.1) {
-          T = 10.0;
-          nc = 0;
-        }
-
         if (tryCount % 20000 == 0) {
           k = updateK(minCost);
           t = updateT(timeLimit-currentTime);
@@ -736,7 +725,6 @@ class TerrainCrossing {
           next.cost += costB + costC;
           next.ids.push_back(nid);
 
-          next.lh[0] = Location(ny, nx);
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
@@ -975,7 +963,6 @@ class TerrainCrossing {
           next.cost += costB + costC;
           next.ids.push_back(nid);
 
-          next.lh[0] = Location(ny, nx);
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
