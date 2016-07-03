@@ -504,6 +504,8 @@ class TerrainCrossing {
       double k = updateK(minCost);
 
       double T = 10000.0;
+      double t = 1.0;
+      ll R = 1000000;
 
       int nc = 0;
 
@@ -548,7 +550,7 @@ class TerrainCrossing {
           goodCost = cost;
           goodPath = path;
           nc = 0;
-        } else if (xor128()%10000 < 10000*exp(diffScore/(T*k))) {
+        } else if (xor128()%R < R*exp(diffScore/(T*k))) {
           goodCost = cost;
           goodPath = path;
           nc++;
@@ -567,6 +569,7 @@ class TerrainCrossing {
         currentTime = getTime(g_startCycle);
         tryCount++;
         T *= alpha;
+        T = max(t, T);
 
         if (nc > 400000 && T < 0.1) {
           T = 10.0;
@@ -575,6 +578,7 @@ class TerrainCrossing {
 
         if (tryCount % 20000 == 0) {
           k = updateK(minCost);
+          t = updateT(timeLimit-currentTime);
 
           if (g_debug && tryCount % 500000 == 0) {
             fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
@@ -590,11 +594,27 @@ class TerrainCrossing {
 
     double updateK(double minCost) {
       if (minCost > 1000) {
-        return 0.8;
+        return 1.0;
       } else if (minCost > 500) {
-        return 0.7;
+        return 0.9;
       } else {
-        return 0.65;
+        return 0.8;
+      }
+    }
+
+    double updateT(double remainTime) {
+      if (remainTime < 1.0) {
+        return 0.1;
+      } else if (remainTime < 2.0) {
+        return 0.5;
+      } else if (remainTime < 3.0) {
+        return 1.0;
+      } else if (remainTime < 4.0) {
+        return 3.0;
+      } else if (remainTime < 6.0) {
+        return 5.0;
+      } else {
+        return 10.0;
       }
     }
 
