@@ -164,6 +164,9 @@ vector<Object> g_objectList;
 int g_objectType[2*MAX_N];
 double g_leaveCost[2*MAX_N];
 
+double g_costHistory[2*MAX_N];
+double g_itemHistory[2*MAX_N];
+
 class TerrainCrossing {
   public:
     void init(vector<string> map, vector<double> locations, int capacity) {
@@ -462,12 +465,15 @@ class TerrainCrossing {
     vector<int> cleanPath(vector<int> path) {
       vector<int> bestPath = path;
       vector<int> goodPath = path;
+      updateHistory(goodPath);
 
       double timeLimit = MAX_TIME-1.0;
       double currentTime = getTime(g_startCycle);
 
       double minCost = calcCost(bestPath);
       double goodCost = minCost;
+
+      assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
 
       fprintf(stderr,"minCost = %f\n", minCost);
 
@@ -480,6 +486,7 @@ class TerrainCrossing {
 
       double T = 10000.0;
       double t = 1.0;
+      double cost;
       ll R = 1000000;
 
       int nc = 0;
@@ -511,7 +518,13 @@ class TerrainCrossing {
             break;
         }
 
-        double cost = calcCost(path);
+        if (c1 < c2 && c1 > 2) {
+          cost = calcCost(path, g_costHistory[c1-2], g_itemHistory[c1-2], c1-1);
+        } else if (c2 < c1 && c2 > 2) {
+          cost = calcCost(path, g_costHistory[c2-2], g_itemHistory[c2-2], c2-1);
+        } else {
+          cost = calcCost(path);
+        }
 
         if (cost < DBL_MAX && minCost > cost) {
           minCost = cost;
@@ -524,10 +537,17 @@ class TerrainCrossing {
         if (goodCost > cost) {
           goodCost = cost;
           goodPath = path;
+          updateHistory(goodPath);
+          assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
           nc = 0;
-        } else if (xor128()%R < R*exp(diffScore/(T*k))) {
+        } else if (cost < DBL_MAX && xor128()%R < R*exp(diffScore/(T*k))) {
           goodCost = cost;
           goodPath = path;
+          updateHistory(goodPath);
+          if (fabs(g_costHistory[2*N-1]-goodCost) > EPS) {
+            fprintf(stderr,"costA = %f, costB = %f\n", g_costHistory[2*N-1], goodCost);
+          }
+          assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
           nc++;
         } else {
           nc++;
@@ -967,13 +987,14 @@ class TerrainCrossing {
       return score;
     }
 
-    double calcCost(const vector<int> &path) {
+    double calcCost(const vector<int> &path, double fc = 0.0, int fic = 0, int offset = 0) {
       int psize = 2*N;
-      int itemCount = 0;
-      double cost = g_leaveCost[path[0]];
+      int itemCount = fic;
+      double cost = (fc > 0.0)? fc : g_leaveCost[path[0]];
 
-      for (int i = 0; i < psize-1; i++) {
+      for (int i = offset; i < psize-1; i++) {
         itemCount += g_objectType[path[i]];
+
         if (itemCount < 0 || itemCount > g_capacity) {
           return DBL_MAX;
         }
@@ -984,6 +1005,27 @@ class TerrainCrossing {
       cost += g_leaveCost[path[psize-1]];
 
       return cost;
+    }
+
+    void updateHistory(const vector<int> &path) {
+      int psize = 2*N;
+      int itemCount = 0;
+      double cost = g_leaveCost[path[0]];
+
+      for (int i = 0; i < psize-1; i++) {
+        itemCount += g_objectType[path[i]];
+
+        if (itemCount < 0 || itemCount > g_capacity) {
+          assert(false);
+        }
+
+        cost += g_pathCost[path[i]][path[i+1]];
+        g_costHistory[i] = cost;
+        g_itemHistory[i] = itemCount;
+      }
+
+      cost += g_leaveCost[path[psize-1]];
+      g_costHistory[psize-1] = cost;
     }
 
     bool isValidAnswer(vector<Location> &path) {
