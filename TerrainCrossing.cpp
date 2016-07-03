@@ -28,8 +28,8 @@ const ll CYCLE_PER_SEC = 2400000000;
 double MAX_TIME = 10.2;
 bool g_debug = false;
 
-const int DY[4] = {-1, 0, 0, 1};
-const int DX[4] = {0, -1, 1, 0};
+const short DY[4] = {-1, 0, 0, 1};
+const short DX[4] = {0, -1, 1, 0};
 
 const double EPS = 0.001;
 
@@ -87,22 +87,22 @@ struct Location {
 };
 
 struct Node {
-  int cid;
+  short cid;
+  short yi;
+  short xi;
+  short beforeDirect;
+  short length;
   double y;
   double x;
-  int yi;
-  int xi;
   double cost;
   double beforeY;
   double beforeX;
-  int beforeDirect;
-  int length;
-  int step[3];
-  int fc[3];
-  vector<int> ids;
+  short step[3];
+  short fc[3];
+  vector<short> ids;
   bool update;
 
-  Node(int cid, double cost, double y, double x) {
+  Node(short cid, double cost, double y, double x) {
     this->cid = cid;
     this->cost = cost;
     this->y = y;
@@ -244,8 +244,8 @@ class TerrainCrossing {
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
 
-        int y = node.yi;
-        int x = node.xi;
+        short y = node.yi;
+        short x = node.xi;
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
@@ -272,11 +272,11 @@ class TerrainCrossing {
         }
 
         for (int i = 0; i < 4; i++) {
-          int ny = y + DY[i];
-          int nx = x + DX[i];
+          short ny = y + DY[i];
+          short nx = x + DX[i];
           if (isOutside(ny, nx)) continue;
 
-          int nid = ny*S + nx;
+          short nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
@@ -339,8 +339,8 @@ class TerrainCrossing {
       int rsize = result.size();
 
       for (int i = 0; i < path.size()-1; i++) {
-        int from = path[i];
-        int to = path[i+1];
+        short from = path[i];
+        short to = path[i+1];
 
         vector<Location> pa = createPath(from, to);
 
@@ -349,8 +349,8 @@ class TerrainCrossing {
           Location l2 = pa[j];
 
           if (!l1.locked) {
-            int nid1 = l1.yi*S + l1.xi;
-            int nid2 = l2.yi*S + l2.xi;
+            short nid1 = l1.yi*S + l1.xi;
+            short nid2 = l2.yi*S + l2.xi;
 
             if (nid1 == nid2) {
               result[rsize-1] = l2;
@@ -695,7 +695,7 @@ class TerrainCrossing {
           int isize = node.ids.size();
 
           for (int i = 0; i < isize; i++) {
-            int id = node.ids[i];
+            short id = node.ids[i];
             Location l = nid2coord(id);
             if (id == 0) l.locked = true;
             path.push_back(l);
@@ -706,11 +706,11 @@ class TerrainCrossing {
         }
 
         for (int i = 0; i < 4; i++) {
-          int ny = y + DY[i];
-          int nx = x + DX[i];
+          short ny = y + DY[i];
+          short nx = x + DX[i];
           if (isOutside(ny, nx)) continue;
 
-          int nid = ny*S + nx;
+          short nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
@@ -923,16 +923,17 @@ class TerrainCrossing {
 
       while (!pque.empty()) {
         Node node = pque.top(); pque.pop();
-        int y = node.yi;
-        int x = node.xi;
+        short y = node.yi;
+        short x = node.xi;
 
         if (checkList[node.cid]) continue;
         checkList[node.cid] = true;
 
         if (isBorder(y, x)) {
           int isize = node.ids.size();
+
           for (int i = 0; i < isize-1; i++) {
-            int id = node.ids[i];
+            short id = node.ids[i];
             double cy = id / S + 0.5;
             double cx = id % S + 0.5;
             path.push_back(Location(cy, cx));
@@ -944,11 +945,11 @@ class TerrainCrossing {
         }
 
         for (int i = 0; i < 4; i++) {
-          int ny = y + DY[i];
-          int nx = x + DX[i];
+          short ny = y + DY[i];
+          short nx = x + DX[i];
           if (isOutside(ny, nx)) continue;
 
-          int nid = ny*S + nx;
+          short nid = ny*S + nx;
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
