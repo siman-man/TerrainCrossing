@@ -150,14 +150,12 @@ struct Object {
   int type;
   double y;
   double x;
-  double leaveCost;
 
   Object(int id, int type, double y, double x) {
     this->id = id;
     this->type = type;
     this->y = y;
     this->x = x;
-    this->leaveCost = DBL_MAX;
   }
 
   bool isItem() {
@@ -182,6 +180,8 @@ ll g_startCycle;
 
 Cell g_field[MAX_S][MAX_S];
 vector<Object> g_objectList;
+int g_objectType[2*MAX_N];
+double g_leaveCost[2*MAX_N];
 
 class TerrainCrossing {
   public:
@@ -203,6 +203,8 @@ class TerrainCrossing {
       }
 
       for (int i = 0; i < 2*N; i++) {
+        g_leaveCost[i] = DBL_MAX;
+
         for (int j = 0; j < 2*N; j++) {
           g_pathCost[i][j] = DBL_MAX;
         }
@@ -218,6 +220,7 @@ class TerrainCrossing {
         obj.nid = iy * S + ix;
         obj.type = (i < N)? ITEM : TARGET;
         g_field[iy][ix].objIdList.push_back(i);
+        g_objectType[i] = obj.type;
 
         g_objectList.push_back(obj);
       }
@@ -253,7 +256,7 @@ class TerrainCrossing {
         checkList[node.cid] = true;
 
         if (y == 0 || y == S-1 || x == 0 || x == S-1) {
-          obj->leaveCost = min(obj->leaveCost, node.cost + 0.5*g_fieldCost[y][x]);
+          g_leaveCost[oid] = min(g_leaveCost[oid], node.cost + 0.5*g_fieldCost[y][x]);
         }
 
         Cell cell = g_field[y][x];
@@ -497,17 +500,14 @@ class TerrainCrossing {
 
       int c1, c2;
       int psize = path.size();
-      double temp = 10000;
       double alpha = 0.99999;
       double k = updateK(minCost);
 
-      double T = temp;
-      double remainTime;
+      double T = 10000.0;
 
       int nc = 0;
 
       while (currentTime < timeLimit) {
-        remainTime = timeLimit - currentTime;
         do {
           c1 = xor128() % psize;
           c2 = xor128() % psize;
@@ -733,9 +733,9 @@ class TerrainCrossing {
             cand.path.push_back(oid);
 
             if (i == 0) {
-              cand.cost = obj->leaveCost;
+              cand.cost = g_leaveCost[oid];
             } else if (i == 2*N-1) {
-              cand.cost = node.cost + g_pathCost[node.cid][oid] + obj->leaveCost;
+              cand.cost = node.cost + g_pathCost[node.cid][oid] + g_leaveCost[oid];
             } else {
               cand.cost = node.cost + g_pathCost[node.cid][oid];
             }
@@ -801,8 +801,7 @@ class TerrainCrossing {
       int minId = -1;
       for (int i = 0; i < N; i++) {
         Item *item = getItem(i);
-        //double dist = item->leaveCost;
-        double dist = calcDist(item->y, item->x, S/2.0, S/2.0) - item->leaveCost;
+        double dist = calcDist(item->y, item->x, S/2.0, S/2.0) - g_leaveCost[i];
 
         if (minDist > dist) {
           minDist = dist;
@@ -1027,16 +1026,13 @@ class TerrainCrossing {
       return score;
     }
 
-    double calcCost(vector<int> &path) {
-      int psize = path.size();
+    double calcCost(const vector<int> &path) {
+      int psize = 2*N;
       int itemCount = 0;
-      double cost = g_objectList[path[0]].leaveCost;
+      double cost = g_leaveCost[path[0]];
 
       for (int i = 0; i < psize-1; i++) {
-        int oid = path[i];
-        Object *obj = getObject(oid);
-
-        itemCount += obj->type;
+        itemCount += g_objectType[path[i]];
         if (itemCount < 0 || itemCount > g_capacity) {
           return DBL_MAX;
         }
@@ -1044,7 +1040,7 @@ class TerrainCrossing {
         cost += g_pathCost[path[i]][path[i+1]];
       }
 
-      cost += g_objectList[path[psize-1]].leaveCost;
+      cost += g_leaveCost[path[psize-1]];
 
       return cost;
     }
