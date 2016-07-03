@@ -97,7 +97,11 @@ struct Node {
   double beforeX;
   int beforeDirect;
   int length;
+  int step[3];
+  Location lh[4];
+  int fc[3];
   vector<int> ids;
+  bool update;
 
   Node(int cid, double cost, double y, double x) {
     this->cid = cid;
@@ -116,6 +120,18 @@ struct Node {
     Node node(cid, cost, y, x);
     node.ids = ids;
     node.beforeDirect = beforeDirect;
+
+    node.lh[3] = lh[2];
+    node.lh[2] = lh[1];
+    node.lh[1] = lh[0];
+
+    node.step[2] = step[1];
+    node.step[1] = step[0];
+
+    node.fc[2] = fc[1];
+    node.fc[1] = fc[0];
+
+    node.update = false;
 
     return node;
   }
@@ -278,6 +294,12 @@ class TerrainCrossing {
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
           next.cost += costB + costC;
+
+          next.lh[0] = Location(ny, nx);
+          next.step[0] = i;
+          next.fc[0] = g_fieldCost[ny][nx];
+
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -713,6 +735,12 @@ class TerrainCrossing {
           double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
           next.cost += costB + costC;
           next.ids.push_back(nid);
+
+          next.lh[0] = Location(ny, nx);
+          next.step[0] = i;
+          next.fc[0] = g_fieldCost[ny][nx];
+
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -946,6 +974,12 @@ class TerrainCrossing {
           double costC = pow(g_fieldCost[y][x]-g_fieldCost[ny][nx], 2);
           next.cost += costB + costC;
           next.ids.push_back(nid);
+
+          next.lh[0] = Location(ny, nx);
+          next.step[0] = i;
+          next.fc[0] = g_fieldCost[ny][nx];
+
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -1005,6 +1039,21 @@ class TerrainCrossing {
       cost += g_leaveCost[path[psize-1]];
 
       return cost;
+    }
+
+    void updateNodeCost(Node &node) {
+      if (node.length <= 2 || node.update) return;
+
+      int m0 = node.step[0] % 2;
+      int m1 = node.step[1] % 2;
+      int m2 = node.step[2] % 2;
+
+      if (m0 != m1 && m1 != m2) {
+        node.cost -= 0.2*max(node.fc[1], node.fc[2]);
+      }
+      if (m0 == m1 && m1 != m2) {
+        node.cost -= 0.2*node.fc[2];
+      }
     }
 
     void updateHistory(const vector<int> &path) {
