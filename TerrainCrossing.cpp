@@ -86,25 +86,6 @@ struct Location {
   }
 };
 
-struct BeamNode {
-  double cost;
-  int cid;
-  int itemCount;
-  bitset<MAX_N> checkList;
-  vector<int> path;
-
-  BeamNode() {
-    this->checkList = 0;
-    this->cid = -1;
-    this->cost = 0.0;
-    this->itemCount = 0;
-  }
-
-  bool operator >(const BeamNode &bn) const {
-    return cost > bn.cost;
-  }
-};
-
 struct Node {
   int cid;
   double y;
@@ -306,16 +287,7 @@ class TerrainCrossing {
 
       fprintf(stderr,"start =>\n");
 
-      vector<int> path1;
-
-      if (N <= 30) {
-        path1 = createFirstPathBeam();
-      } else {
-        path1 = createFirstPathNN();
-      }
-
-      double currentTime = getTime(g_startCycle);
-      fprintf(stderr,"current time = %f\n", currentTime);
+      vector<int> path1 = createFirstPathNN();
 
       cerr.flush();
       assert(isValidPath(path1));
@@ -326,6 +298,9 @@ class TerrainCrossing {
       double score2 = calcCost(path2);
 
       vector<int> path = (score1 < score2)? path1 : path2;
+
+      double currentTime = getTime(g_startCycle);
+      fprintf(stderr,"current time = %f\n", currentTime);
 
       path = cleanPath(path);
       vector<Location> result;
@@ -610,11 +585,11 @@ class TerrainCrossing {
       } else if (remainTime < 3.0) {
         return 1.0;
       } else if (remainTime < 4.0) {
-        return 3.0;
+        return 2.0;
       } else if (remainTime < 6.0) {
-        return 5.0;
+        return 3.0;
       } else {
-        return 10.0;
+        return 5.0;
       }
     }
 
@@ -723,60 +698,6 @@ class TerrainCrossing {
       }
 
       return path;
-    }
-
-    vector<int> createFirstPathBeam(int BEAM_WIDTH = 2000) {
-      BeamNode root;
-      queue<BeamNode> que;
-      que.push(root);
-      BeamNode cand;
-
-      for (int i = 0; i < 2*N; i++) {
-        priority_queue<BeamNode, vector<BeamNode>, greater<BeamNode> > pque;
-
-        while (!que.empty()) {
-          BeamNode node = que.front(); que.pop();
-          int itemCount = node.itemCount;
-
-          for (int oid = 0; oid < 2*N; oid++) {
-            if (node.checkList[oid]) continue;
-            if (node.cid == oid) continue;
-            if (itemCount == g_capacity && oid < N) continue;
-            if (itemCount == 0 && oid >= N) continue;
-
-            Object *obj = getObject(oid);
-
-            cand.cid = oid;
-            cand.path = node.path;
-            cand.checkList = node.checkList;
-            cand.checkList.set(oid);
-            cand.path.push_back(oid);
-
-            if (i == 0) {
-              cand.cost = g_leaveCost[oid];
-            } else if (i == 2*N-1) {
-              cand.cost = node.cost + g_pathCost[node.cid][oid] + g_leaveCost[oid];
-            } else {
-              cand.cost = node.cost + g_pathCost[node.cid][oid];
-            }
-            cand.itemCount = node.itemCount + obj->type;
-
-            pque.push(cand);
-          }
-        }
-
-        for (int k = 0; k < BEAM_WIDTH && !pque.empty(); k++) {
-          BeamNode node = pque.top(); pque.pop();
-          que.push(node);
-        }
-      }
-
-      assert(!que.empty());
-
-      BeamNode node = que.front();
-
-      assert(node.path.size() == 2*N);
-      return node.path;
     }
 
     vector<int> createFirstPathNN() {
