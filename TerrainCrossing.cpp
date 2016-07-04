@@ -344,15 +344,12 @@ class TerrainCrossing {
 
         vector<Location> pa = createPath(from, to);
 
-        for (int j = 0; j < pa.size(); j++) {
+        for (int j = 1; j < pa.size(); j++) {
           Location l1 = result[rsize-1];
           Location l2 = pa[j];
 
           if (!l1.locked) {
-            short nid1 = l1.yi*S + l1.xi;
-            short nid2 = l2.yi*S + l2.xi;
-
-            if (nid1 == nid2) {
+            if (l1.manhattan(l2) == 0) {
               result[rsize-1] = l2;
               continue;
             }
@@ -694,7 +691,9 @@ class TerrainCrossing {
         if (node.cid == toObj->nid) {
           int isize = node.ids.size();
 
-          for (int i = 0; i < isize; i++) {
+          path.push_back(Location(fromObj->y, fromObj->x, true));
+
+          for (int i = 0; i < isize-1; i++) {
             short id = node.ids[i];
             Location l = nid2coord(id);
             if (id == 0) l.locked = true;
