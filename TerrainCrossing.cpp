@@ -503,6 +503,8 @@ class TerrainCrossing {
       ll R = 1000000;
 
       int nc = 0;
+      double g_average = S;
+      ll ac = 0;
 
       while (currentTime < timeLimit) {
         do {
@@ -547,12 +549,16 @@ class TerrainCrossing {
 
         double diffScore = goodCost - cost;
 
+        if (cost < DBL_MAX && diffScore < 0) {
+          g_average += fabs(diffScore);
+          ac++;
+        }
+
         if (goodCost > cost) {
           goodCost = cost;
           goodPath = path;
           updateHistory(goodPath);
           assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
-          nc = 0;
         } else if (cost < DBL_MAX && xor128()%R < R*exp(diffScore/(T*k))) {
           goodCost = cost;
           goodPath = path;
@@ -581,10 +587,10 @@ class TerrainCrossing {
 
         if (tryCount % 20000 == 0) {
           k = updateK(minCost);
-          t = updateT(timeLimit-currentTime);
+          t = updateT(timeLimit-currentTime, g_average / ac);
 
           if (g_debug && tryCount % 500000 == 0) {
-            fprintf(stderr,"goodCost = %f, minCost = %f, T = %f\n", goodCost, minCost, T);
+            fprintf(stderr,"goodCost = %f, minCost = %f, T = %f, average = %f\n", goodCost, minCost, T, g_average / ac);
             cerr.flush();
           }
         }
@@ -605,20 +611,30 @@ class TerrainCrossing {
       }
     }
 
-    double updateT(double remainTime) {
+    double updateT(double remainTime, double average) {
+      double r = 0.01;
+
       if (remainTime < 1.0) {
-        return 0.1;
+        r = 0.0000001;
       } else if (remainTime < 2.0) {
-        return 0.5;
+        r = 0.0000001;
       } else if (remainTime < 3.0) {
-        return 1.0;
+        r = 0.0000005;
       } else if (remainTime < 4.0) {
-        return 2.0;
+        r = 0.000001;
+      } else if (remainTime < 5.0) {
+        r = 0.00001;
       } else if (remainTime < 6.0) {
-        return 3.0;
+        r = 0.0001;
+      } else if (remainTime < 7.0) {
+        r = 0.001;
+      } else if (remainTime < 8.0) {
+        r = 0.005;
       } else {
-        return 5.0;
+        r = 0.01;
       }
+
+      return -0.12 * average / log(r);
     }
 
     void swapObject(vector<short> &path, int c1, int c2) {
