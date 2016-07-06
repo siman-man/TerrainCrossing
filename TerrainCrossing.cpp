@@ -25,7 +25,7 @@ const int ITEM = 1;
 const int TARGET = -1;
 
 const ll CYCLE_PER_SEC = 2400000000;
-double MAX_TIME = 10.0;
+double MAX_TIME = 10.3;
 bool g_debug = false;
 bool g_ldsCopyOn = false;
 
@@ -232,9 +232,13 @@ class TerrainCrossing {
 
     void directFixTryCount() {
       if (S <= 10) {
-        g_fixTryCount = 5000;
+        g_fixTryCount = 4000;
       } else if (S <= 15) {
-        g_fixTryCount = 3000;
+        if (N <= 15) {
+          g_fixTryCount = 1500;
+        } else {
+          g_fixTryCount = 1000;
+        }
       } else if (S <= 20) {
         if (N <= 10) {
           g_fixTryCount = 1000;
@@ -355,9 +359,7 @@ class TerrainCrossing {
       vector<short> path1 = createFirstPathNN();
 
       cerr.flush();
-      assert(isValidPath(path1));
       vector<short> path2 = createFirstPathFI();
-      assert(isValidPath(path2));
 
       double score1 = calcCost(path1);
       double score2 = calcCost(path2);
@@ -367,8 +369,6 @@ class TerrainCrossing {
       fprintf(stderr,"%f: start cleanPath =>\n", getTime(g_startCycle));
 
       path = cleanPath(path);
-
-      assert(isValidPath(path));
 
       vector<Location> result;
       vector<Location> startPath = leaveMap(path[0]);
@@ -383,7 +383,6 @@ class TerrainCrossing {
         Location l = startPath[i];
         result.push_back(l);
       }
-      assert(result[0].locked);
       if (!g_ldsCopyOn) {
         result.push_back(Location(sobj->y, sobj->x, true));
       }
@@ -400,13 +399,10 @@ class TerrainCrossing {
         short to = path[i+1];
 
         subPath = createPath(from, to);
-        assert(isValidPath(subPath));
 
         for (int j = 1; j < subPath.size(); j++) {
           l1 = result[rsize-1];
           l2 = subPath[j];
-
-          assert(l1.manhattan(l2) <= 1);
 
           if (!l1.locked && l1.manhattan(l2) == 0) {
             result[rsize-1] = l2;
@@ -435,16 +431,13 @@ class TerrainCrossing {
 
       result[result.size()-1].locked = true;
       double bscore = calcCostDetail(result);
-      assert(isValidAnswer(result));
 
       fprintf(stderr,"%f: start fixPath =>\n", getTime(g_startCycle));
       fixPath(result);
       fprintf(stderr,"%f: finish fixPath =>\n", getTime(g_startCycle));
 
       double ascore = calcCostDetail(result);
-      assert(isValidAnswer(result));
       ret = path2answer(result);
-      assert(isValidPath(result));
 
       fprintf(stderr,"%f: Before = %f, After = %f\n", getTime(g_startCycle), bscore, ascore);
 
@@ -556,8 +549,6 @@ class TerrainCrossing {
       double minCost = calcCostDetail(path);
       ll tryCount = 0;
 
-      assert(psize >= 3);
-
       int mr = 10;
       int range = min(mr, psize-2);
       int offset = max(1, psize-(mr+1));
@@ -596,9 +587,6 @@ class TerrainCrossing {
         tryCount++;
       }
 
-      //fprintf(stderr,"tryCount fix = %lld, minCost = %f\n", tryCount, minCost);
-      //cerr.flush();
-
       return minCost;
     }
 
@@ -607,13 +595,11 @@ class TerrainCrossing {
       vector<short> goodPath = path;
       updateHistory(goodPath);
 
-      double timeLimit = MAX_TIME-2.1;
+      double timeLimit = MAX_TIME-1.6;
       double currentTime = getTime(g_startCycle);
 
       double minCost = calcCost(bestPath);
       double goodCost = minCost;
-
-      assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
 
       ll tryCount = 0;
 
@@ -677,16 +663,11 @@ class TerrainCrossing {
           goodCost = cost;
           goodPath = path;
           updateHistory(goodPath);
-          assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
           nc = 0;
         } else if (cost < DBL_MAX && xor128()%R < R*exp(diffScore/(T*k))) {
           goodCost = cost;
           goodPath = path;
           updateHistory(goodPath);
-          if (fabs(g_costHistory[2*N-1]-goodCost) > EPS) {
-            fprintf(stderr,"costA = %f, costB = %f\n", g_costHistory[2*N-1], goodCost);
-          }
-          assert(fabs(g_costHistory[2*N-1]-goodCost) < EPS);
           nc++;
         } else {
           nc++;
@@ -890,7 +871,6 @@ class TerrainCrossing {
           }
         }
 
-        assert(minId >= 0);
         ret.push_back(minId);
         checkList[minId] = true;
       }
@@ -915,7 +895,6 @@ class TerrainCrossing {
           minId = i;
         }
       }
-      assert(minId >= 0);
       ret.push_back(minId);
       checkList[minId] = true;
 
@@ -931,7 +910,6 @@ class TerrainCrossing {
           } else {
             cnt--;
           }
-          assert(cnt >= 0);
           itemCount[j] = cnt;
         }
 
@@ -983,7 +961,6 @@ class TerrainCrossing {
             }
           }
 
-          assert(index >= 0);
           checkList[maxId] = true;
           ret.insert(ret.begin()+index, maxId);
         } else {
@@ -1031,7 +1008,6 @@ class TerrainCrossing {
             }
           }
 
-          assert(index >= 0);
           checkList[maxId] = true;
           ret.insert(ret.begin()+index, maxId);
         }
@@ -1198,10 +1174,6 @@ class TerrainCrossing {
 
       for (int i = 0; i < psize-1; i++) {
         itemCount += g_objectType[path[i]];
-
-        if (itemCount < 0 || itemCount > g_capacity) {
-          assert(false);
-        }
 
         cost += g_pathCost[path[i]][path[i+1]];
         g_costHistory[i] = cost;
