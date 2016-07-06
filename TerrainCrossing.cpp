@@ -232,32 +232,34 @@ class TerrainCrossing {
 
     void directFixTryCount() {
       if (S <= 10) {
-        g_fixTryCount = 4000;
+        g_fixTryCount = 5000;
       } else if (S <= 15) {
         if (N <= 15) {
-          g_fixTryCount = 1500;
+          g_fixTryCount = 2000;
         } else {
-          g_fixTryCount = 1000;
+          g_fixTryCount = 1500;
         }
       } else if (S <= 20) {
         if (N <= 10) {
-          g_fixTryCount = 1000;
+          g_fixTryCount = 1500;
         } else if (N <= 20) {
-          g_fixTryCount = 800;
+          g_fixTryCount = 1200;
         } else if (N <= 30) {
-          g_fixTryCount = 500;
+          g_fixTryCount = 800;
         } else {
-          g_fixTryCount = 300;
+          g_fixTryCount = 700;
         }
       } else if (S <= 25) {
         if (N <= 10) {
           g_fixTryCount = 1000;
+        } else if (N <= 20) {
+          g_fixTryCount = 700;
         } else if (N <= 30) {
-          g_fixTryCount = 400;
+          g_fixTryCount = 500;
         } else if (N <= 40) {
-          g_fixTryCount = 200;
+          g_fixTryCount = 400;
         } else {
-          g_fixTryCount = 100;
+          g_fixTryCount = 250;
         }
       }
     }
@@ -325,6 +327,9 @@ class TerrainCrossing {
           if (isOutside(ny, nx)) continue;
 
           short nid = ny*S + nx;
+
+          if (checkList[nid]) continue;
+
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
@@ -686,7 +691,7 @@ class TerrainCrossing {
 
         if (tryCount % 20000 == 0) {
           k = updateK(minCost);
-          t = updateT(timeLimit-currentTime);
+          t = updateT(timeLimit-currentTime, minCost);
 
           if (g_debug && tryCount % 500000 == 0) {
             fprintf(stderr,"%f: goodCost = %f, minCost = %f, T = %f\n", currentTime, goodCost, minCost, T);
@@ -710,8 +715,10 @@ class TerrainCrossing {
       }
     }
 
-    double updateT(double remainTime) {
-      if (remainTime < 1.0) {
+    double updateT(double remainTime, double minCost) {
+      if (minCost > 3000) {
+        return remainTime;
+      } else if (remainTime < 1.0) {
         return 0.1;
       } else if (remainTime < 2.0) {
         return 0.5;
@@ -819,6 +826,9 @@ class TerrainCrossing {
           if (isOutside(ny, nx)) continue;
 
           short nid = ny*S + nx;
+
+          if (checkList[nid]) continue;
+
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
@@ -1060,6 +1070,9 @@ class TerrainCrossing {
           if (isOutside(ny, nx)) continue;
 
           short nid = ny*S + nx;
+
+          if (checkList[nid]) continue;
+
           Node next = node.dup();
           next.cid = nid;
           next.beforeDirect = i;
