@@ -104,6 +104,7 @@ struct Node {
   double beforeX;
   short step[3];
   short fc[3];
+  vector<short> ids;
   vector<Location> lds;
 
   Node(short cid, double cost, double y, double x) {
@@ -132,6 +133,8 @@ struct Node {
 
     if (g_ldsCopyOn) {
       node.lds = lds;
+    } else {
+      node.ids = ids;
     }
 
     return node;
@@ -381,6 +384,9 @@ class TerrainCrossing {
         result.push_back(l);
       }
       assert(result[0].locked);
+      if (!g_ldsCopyOn) {
+        result.push_back(Location(sobj->y, sobj->x, true));
+      }
       fprintf(stderr,"%f: finish leave path from start point. =>\n", getTime(g_startCycle));
 
       int rsize = result.size();
@@ -419,7 +425,9 @@ class TerrainCrossing {
 
       fprintf(stderr,"%f: end path size = %d\n", getTime(g_startCycle), esize);
 
-      for (int i = 1; i < esize; i++) {
+      int offset = (g_ldsCopyOn)? 1 : 0;
+
+      for (int i = offset; i < esize; i++) {
         Location l = endPath[i];
         result.push_back(l);
       }
@@ -427,6 +435,7 @@ class TerrainCrossing {
 
       result[result.size()-1].locked = true;
       double bscore = calcCostDetail(result);
+      assert(isValidAnswer(result));
 
       fprintf(stderr,"%f: start fixPath =>\n", getTime(g_startCycle));
       fixPath(result);
@@ -499,6 +508,7 @@ class TerrainCrossing {
       ll i = 0;
 
       while (currentTime < timeLimit) {
+        currentTime = getTime(g_startCycle);
         i++;
         int index = i % psize;
         Location l = path[index];
@@ -515,10 +525,10 @@ class TerrainCrossing {
 
         l.update();
         if (l.y < 0 || l.y >= S || l.x < 0 || l.x >= S) continue;
-        if (l.y - l.yi < EPS) continue;
-        if (l.x - l.xi < EPS) continue;
-        if ((l.yi+1) - l.y < EPS) continue;
-        if ((l.xi+1) - l.x < EPS) continue;
+        if (l.y - l.yi <= EPS) continue;
+        if (l.x - l.xi <= EPS) continue;
+        if ((l.yi+1) - l.y <= EPS) continue;
+        if ((l.xi+1) - l.x <= EPS) continue;
         if (bl.manhattan(l) != 1 || al.manhattan(l) != 1) continue;
 
         path[index] = l;
@@ -530,8 +540,6 @@ class TerrainCrossing {
         } else {
           minCost += (s2-s1);
         }
-
-        currentTime = getTime(g_startCycle);
         tryCount++;
       }
 
@@ -555,6 +563,7 @@ class TerrainCrossing {
       int offset = max(1, psize-(mr+1));
 
       for (int i = 0; i < g_fixTryCount; i++) {
+        currentTime = getTime(startCycle);
         i++;
         int index = i % range + offset;
         Location l = path[index];
@@ -584,8 +593,6 @@ class TerrainCrossing {
         } else {
           minCost += (s2-s1);
         }
-
-        currentTime = getTime(startCycle);
         tryCount++;
       }
 
@@ -623,6 +630,7 @@ class TerrainCrossing {
       int nc = 0;
 
       while (currentTime < timeLimit) {
+        currentTime = getTime(g_startCycle);
         do {
           c1 = xor128() % psize;
           c2 = xor128() % psize;
@@ -692,7 +700,6 @@ class TerrainCrossing {
           }
         }
 
-        currentTime = getTime(g_startCycle);
         tryCount++;
         T *= alpha;
         T = max(t, T);
@@ -807,8 +814,22 @@ class TerrainCrossing {
         checkList[node.cid] = true;
 
         if (node.cid == toObj->nid) {
-          path = node.lds;
-          path.push_back(Location(toObj->y, toObj->x, true));
+          if (g_ldsCopyOn) {
+            path = node.lds;
+            path.push_back(Location(toObj->y, toObj->x, true));
+          } else {
+            int isize = node.ids.size();
+
+            path.push_back(Location(fromObj->y, fromObj->x, true));
+
+            for (int i = 0; i < isize-1; i++) {
+              short id = node.ids[i];
+              Location l = nid2coord(id);
+              path.push_back(l);
+            }
+
+            path.push_back(Location(toObj->y, toObj->x, true));
+          }
           break;
         }
 
@@ -828,10 +849,11 @@ class TerrainCrossing {
           next.x = nx + 0.5;
 
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          if (!g_ldsCopyOn) {
-            next.lds = node.lds;
+          if (g_ldsCopyOn) {
+            next.lds.push_back(Location(next.y, next.x));
+          } else {
+            next.ids.push_back(nid);
           }
-          next.lds.push_back(Location(next.y, next.x));
 
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
@@ -1039,7 +1061,18 @@ class TerrainCrossing {
         checkList[node.cid] = true;
 
         if (isBorder(y, x)) {
-          path = node.lds;
+          if (g_ldsCopyOn) {
+            path = node.lds;
+          } else {
+            int isize = node.ids.size();
+
+            for (int i = 0; i < isize-1; i++) {
+              short id = node.ids[i];
+              Location l = nid2coord(id);
+              path.push_back(l);
+            }
+          }
+
           Location lastLoc = getLeaveLocation(node.y, node.x);
           fprintf(stderr,"%f: leave from (%f,%f) to (%f,%f)\n", getTime(g_startCycle), obj->y, obj->x, lastLoc.y, lastLoc.x);
           path.push_back(lastLoc);
@@ -1063,10 +1096,11 @@ class TerrainCrossing {
           next.x = nx + 0.5;
 
           double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
-          if (!g_ldsCopyOn) {
-            next.lds = node.lds;
+          if (g_ldsCopyOn) {
+            next.lds.push_back(Location(next.y, next.x));
+          } else {
+            next.ids.push_back(nid);
           }
-          next.lds.push_back(Location(next.y, next.x));
 
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
@@ -1223,6 +1257,10 @@ class TerrainCrossing {
       }
 
       return true;
+    }
+
+    Location nid2coord(short nid) {
+      return Location(nid / S + 0.5, nid % S + 0.5);
     }
 
     inline Object *getObject(int oid) {
