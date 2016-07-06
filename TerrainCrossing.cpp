@@ -334,7 +334,6 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           if (g_ldsCopyOn) {
             next.lds.push_back(Location(next.y, next.x));
           }
@@ -342,7 +341,7 @@ class TerrainCrossing {
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
-          updateNodeCost(next, costB);
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -829,7 +828,6 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           if (g_ldsCopyOn) {
             next.lds.push_back(Location(next.y, next.x));
           } else {
@@ -839,7 +837,7 @@ class TerrainCrossing {
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
-          updateNodeCost(next, costB);
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -1071,7 +1069,6 @@ class TerrainCrossing {
           next.y = ny + 0.5;
           next.x = nx + 0.5;
 
-          double costB = costSeg(Location(node.y, node.x), Location(next.y, next.x));
           if (g_ldsCopyOn) {
             next.lds.push_back(Location(next.y, next.x));
           } else {
@@ -1081,7 +1078,7 @@ class TerrainCrossing {
           next.step[0] = i;
           next.fc[0] = g_fieldCost[ny][nx];
 
-          updateNodeCost(next, costB);
+          updateNodeCost(next);
           pque.push(next);
         }
       }
@@ -1143,9 +1140,17 @@ class TerrainCrossing {
       return cost;
     }
 
-    void updateNodeCost(Node &node, double costB) {
+    void updateNodeCost(Node &node) {
+      double costB;
+      double costC = pow(node.fc[0]-node.fc[1], 2);
+
+      if (node.length <= 1) {
+        costB = costSeg(Location(node.beforeY, node.beforeX), Location(node.y, node.x));
+      } else {
+        costB = 0.5*(node.fc[0]+node.fc[1]) + costC;
+      }
+
       if (!g_ldsCopyOn) {
-        double costC = pow(node.fc[0]-node.fc[1], 2);
         node.cost += costB + costC;
 
         if (node.length <= 2) return;
@@ -1198,7 +1203,6 @@ class TerrainCrossing {
 
     bool isValidPath(vector<Location> &path) {
       int psize = path.size();
-      int cnt = 0;
 
       for (int i = 0; i < psize-1; i++) {
         Location l1 = path[i];
